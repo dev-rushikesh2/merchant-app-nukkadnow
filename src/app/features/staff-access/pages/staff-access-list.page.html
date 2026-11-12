@@ -1,0 +1,229 @@
+<div class="staff-viewport">
+  <!-- Toast -->
+  @if (toast()) {
+    <aside class="staff-toast" role="alert">
+      <svg viewBox="0 0 24 24" class="toast-svg" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      <span>{{ toast() }}</span>
+    </aside>
+  }
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Staff Directory & PIN Security</h1>
+      <p class="page-subtitle">Manage roles, staff permissions, and 4-digit PINs for instant shift switching on shared POS tablets.</p>
+    </div>
+
+    <div class="header-actions">
+      <!-- Active Staff Switcher Pill -->
+      <button type="button" class="btn-active-switcher" (click)="openPinModal()">
+        <span class="active-dot"></span>
+        <div class="active-staff-text">
+          <span class="active-label">Active User:</span>
+          <strong class="active-name">{{ activeStaff().name }} ({{ activeStaff().role }})</strong>
+        </div>
+        <span class="switch-chip">Switch (PIN) ⚡</span>
+      </button>
+
+      <button type="button" class="btn-primary-add" (click)="showInviteModal.set(true)">
+        + Invite Team Member
+      </button>
+    </div>
+  </header>
+
+  <!-- 3 Overview Metrics -->
+  <section class="metrics-row" aria-label="Staff metrics">
+    <div class="metric-card purple-tint">
+      <span class="metric-label">Active Staff Members</span>
+      <strong class="metric-val">{{ staffList().length }} Team</strong>
+      <span class="metric-sub">Authorized for this outlet</span>
+    </div>
+
+    <div class="metric-card emerald-tint">
+      <span class="metric-label">Shared POS Security</span>
+      <strong class="metric-val emerald">PIN LOCK ON</strong>
+      <span class="metric-sub">Instant shift handover</span>
+    </div>
+
+    <div class="metric-card royal-tint">
+      <span class="metric-label">Role Levels</span>
+      <strong class="metric-val purple">4 Granular Roles</strong>
+      <span class="metric-sub">Owner, Manager, Cashier, Chef</span>
+    </div>
+  </section>
+
+  <!-- Roles Guide Cards -->
+  <section class="roles-guide-card">
+    <h2 class="guide-title">Role Permission Breakdown</h2>
+    <div class="roles-grid">
+      <div class="role-badge-box owner">
+        <span class="role-chip owner">OWNER</span>
+        <p>Full unrestricted control over store payouts, bank details, subscriptions, and staff management.</p>
+      </div>
+
+      <div class="role-badge-box manager">
+        <span class="role-chip manager">MANAGER</span>
+        <p>Day-to-day operations: catalogue pricing, inventory adjustments, opening schedules, and order refunds.</p>
+      </div>
+
+      <div class="role-badge-box cashier">
+        <span class="role-chip cashier">CASHIER</span>
+        <p>Walk-in POS counter billing, receipt printing, customer token handover, and live queue calling.</p>
+      </div>
+
+      <div class="role-badge-box chef">
+        <span class="role-chip chef">CHEF / KITCHEN</span>
+        <p>Kitchen display system (KDS), preparation status updates, lead times, and out-of-stock toggles.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Staff Roster Table / Card List -->
+  <section class="roster-section">
+    <div class="roster-header-row">
+      <h2 class="section-title">Outlet Team Members ({{ staffList().length }})</h2>
+    </div>
+
+    <div class="staff-cards-grid">
+      @for (staff of staffList(); track staff.id) {
+        <article class="staff-card" [class.inactive]="!staff.isActive">
+          <div class="staff-card-top">
+            <div class="staff-avatar" [class]="staff.role.toLowerCase()">
+              {{ staff.name.charAt(0) }}
+            </div>
+
+            <div class="staff-names">
+              <strong class="staff-name">{{ staff.name }}</strong>
+              <span class="staff-phone">{{ staff.phone }}</span>
+              <span class="staff-outlet">{{ staff.outlet }}</span>
+            </div>
+
+            <span class="staff-role-badge" [class]="staff.role.toLowerCase()">
+              {{ staff.role }}
+            </span>
+          </div>
+
+          <!-- PIN Row -->
+          <div class="staff-pin-row">
+            <div class="pin-display">
+              <span class="pin-label">POS Switch PIN:</span>
+              <strong class="pin-code">
+                {{ revealedPins()[staff.id] ? staff.pin : '••••' }}
+              </strong>
+            </div>
+
+            <button type="button" class="btn-reveal-pin" (click)="togglePinReveal(staff.id)">
+              {{ revealedPins()[staff.id] ? 'Hide' : 'Reveal PIN' }}
+            </button>
+          </div>
+
+          <!-- Card Footer -->
+          <div class="staff-card-footer">
+            <label class="switch-wrap" title="Toggle active authorization">
+              <input type="checkbox" [checked]="staff.isActive" (change)="toggleStaffActive(staff.id)" />
+              <span class="switch-slider"></span>
+              <span class="switch-label">{{ staff.isActive ? 'Active' : 'Suspended' }}</span>
+            </label>
+
+            @if (staff.role !== 'OWNER') {
+              <button type="button" class="btn-remove-staff" (click)="removeStaff(staff.id, staff.name)">
+                Remove
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- MODAL 1: FAST KEYPAD PIN SWITCH               -->
+  <!-- ============================================== -->
+  @if (showPinSwitchModal()) {
+    <div class="modal-backdrop" (click)="showPinSwitchModal.set(false)">
+      <div class="keypad-dialog" (click)="$event.stopPropagation()">
+        <header class="keypad-header">
+          <span class="keypad-subtitle">Shared POS Tablet</span>
+          <h2 class="keypad-title">Enter 4-Digit Staff PIN</h2>
+        </header>
+
+        <!-- PIN Dots Display -->
+        <div class="pin-dots-display" [class.error]="pinError()">
+          <div class="dot" [class.filled]="enteredPin().length >= 1"></div>
+          <div class="dot" [class.filled]="enteredPin().length >= 2"></div>
+          <div class="dot" [class.filled]="enteredPin().length >= 3"></div>
+          <div class="dot" [class.filled]="enteredPin().length >= 4"></div>
+        </div>
+
+        @if (pinError()) {
+          <span class="pin-error-text">{{ pinError() }}</span>
+        }
+
+        <!-- 3x4 Touch Keypad -->
+        <div class="touch-keypad">
+          <button type="button" class="num-key" (click)="appendPinDigit('1')">1</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('2')">2</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('3')">3</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('4')">4</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('5')">5</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('6')">6</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('7')">7</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('8')">8</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('9')">9</button>
+          <button type="button" class="num-key key-clear" (click)="clearPin()">C</button>
+          <button type="button" class="num-key" (click)="appendPinDigit('0')">0</button>
+          <button type="button" class="num-key key-cancel" (click)="showPinSwitchModal.set(false)">✕</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================== -->
+  <!-- MODAL 2: INVITE TEAM MEMBER                   -->
+  <!-- ============================================== -->
+  @if (showInviteModal()) {
+    <div class="modal-backdrop" (click)="showInviteModal.set(false)">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <h3>Invite Team Member</h3>
+          <button type="button" class="btn-close" (click)="showInviteModal.set(false)">×</button>
+        </header>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="required">*</span></label>
+            <input type="text" class="form-input" placeholder="e.g. Rahul Deshmukh" [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mobile Number <span class="required">*</span></label>
+            <input type="tel" class="form-input" placeholder="+91 98765 43210" [ngModel]="newPhone()" (ngModelChange)="newPhone.set($event)" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Assigned Role</label>
+            <select class="form-select" [ngModel]="newRole()" (ngModelChange)="newRole.set($event)">
+              <option value="MANAGER">Manager (Full store control)</option>
+              <option value="CASHIER">Cashier (Walk-in POS & Tokens)</option>
+              <option value="CHEF">Chef / Kitchen (KDS & Prep)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">4-Digit POS Switch PIN (Optional)</label>
+            <input type="text" maxlength="4" class="form-input" placeholder="e.g. 5678 (auto-generated if empty)" [ngModel]="newPin()" (ngModelChange)="newPin.set($event)" />
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn-modal-cancel" (click)="showInviteModal.set(false)">Cancel</button>
+          <button type="button" class="btn-modal-submit" (click)="inviteStaffMember()">
+            Send Invitation & Authorize
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>

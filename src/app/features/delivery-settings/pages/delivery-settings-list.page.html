@@ -1,0 +1,235 @@
+<div class="delivery-viewport">
+  <!-- Toast -->
+  @if (toast()) {
+    <aside class="del-toast" role="alert">
+      <svg viewBox="0 0 24 24" class="toast-svg" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      <span>{{ toast() }}</span>
+    </aside>
+  }
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Delivery & Fleet Management</h1>
+      <p class="page-subtitle">Configure in-house store delivery zones, minimum order criteria, and fleet dispatch.</p>
+    </div>
+
+    <div class="header-actions">
+      <button 
+        type="button" 
+        class="btn-delivery-toggle" 
+        [class.active]="isDeliveryEnabled()"
+        (click)="toggleDelivery()">
+        <span class="dot-live"></span>
+        <span>{{ isDeliveryEnabled() ? 'Delivery Live (Active)' : 'Delivery Paused' }}</span>
+      </button>
+
+      <button type="button" class="btn-save-settings" (click)="saveSettings()">
+        Save Changes
+      </button>
+    </div>
+  </header>
+
+  <!-- 4 Overview Metric Cards -->
+  <section class="metrics-row" aria-label="Delivery rules summary">
+    <div class="metric-card purple-tint">
+      <span class="metric-label">Service Radius</span>
+      <strong class="metric-val">{{ deliveryRadiusKm() }} km</strong>
+      <span class="metric-sub">From your store location</span>
+    </div>
+
+    <div class="metric-card emerald-tint">
+      <span class="metric-label">Min. Order Value</span>
+      <strong class="metric-val emerald">₹{{ minOrderAmount() }}</strong>
+      <span class="metric-sub">For delivery eligibility</span>
+    </div>
+
+    <div class="metric-card orange-tint">
+      <span class="metric-label">Base Delivery Fee</span>
+      <strong class="metric-val orange">₹{{ baseDeliveryFee() }}</strong>
+      <span class="metric-sub">Free above ₹{{ freeDeliveryAbove() }}</span>
+    </div>
+
+    <div class="metric-card royal-tint">
+      <span class="metric-label">Avg Delivery Time</span>
+      <strong class="metric-val purple">{{ estDeliveryMinutes() }} mins</strong>
+      <span class="metric-sub">Promise to customer</span>
+    </div>
+  </section>
+
+  <!-- Honest Direct Delivery Banner -->
+  <aside class="direct-delivery-banner" role="region" aria-label="Store delivery disclosure">
+    <div class="banner-lead-icon">🛵</div>
+    <div class="banner-body">
+      <strong class="banner-title">Store-Operated Direct Self-Delivery</strong>
+      <p class="banner-text">
+        All deliveries are dispatched directly by your own in-store riders or personal staff. 
+        NukkadNow does not operate third-party gig delivery fleets. Customers are informed that your store delivers directly with care.
+      </p>
+    </div>
+  </aside>
+
+  <!-- 2-Column Responsive Setup Grid -->
+  <div class="delivery-grid">
+    <!-- LEFT: Coverage Area & Pincodes -->
+    <main class="grid-main-col">
+      <!-- Geofence Card -->
+      <section class="config-card">
+        <h2 class="card-title">Delivery Radius & Geofence</h2>
+        <p class="card-subtitle">Set your maximum delivery radius around your store coordinates.</p>
+
+        <div class="radius-slider-group">
+          <div class="slider-header">
+            <span class="slider-label">Coverage Radius:</span>
+            <strong class="radius-value">{{ deliveryRadiusKm() }} km</strong>
+          </div>
+          <input 
+            type="range" 
+            min="1" 
+            max="15" 
+            step="0.5" 
+            class="range-slider" 
+            [ngModel]="deliveryRadiusKm()"
+            (ngModelChange)="deliveryRadiusKm.set(+$event)" />
+          <div class="slider-ticks">
+            <span>1 km</span>
+            <span>5 km</span>
+            <span>10 km</span>
+            <span>15 km</span>
+          </div>
+        </div>
+
+        <!-- Vector Map Preview -->
+        <div class="vector-map-box">
+          <svg viewBox="0 0 400 180" class="map-svg" aria-label="Geofence radius preview">
+            <rect width="400" height="180" fill="#F1F5F9" rx="12"/>
+            <path d="M0 60 Q100 80 200 40 T400 70" stroke="#CBD5E1" stroke-width="6" fill="none"/>
+            <path d="M120 0 Q140 90 100 180" stroke="#E2E8F0" stroke-width="12" fill="none"/>
+            <path d="M260 0 Q280 100 320 180" stroke="#E2E8F0" stroke-width="8" fill="none"/>
+            <!-- Purple radius circle -->
+            <circle cx="200" cy="90" r="65" fill="rgba(109, 40, 217, 0.12)" stroke="#6D28D9" stroke-width="2" stroke-dasharray="4 4"/>
+            <!-- Store Pin -->
+            <circle cx="200" cy="90" r="10" fill="#FF5A1F"/>
+            <circle cx="200" cy="90" r="4" fill="#FFFFFF"/>
+          </svg>
+          <div class="map-badge">📍 Store Location (Coverage: {{ deliveryRadiusKm() }} km)</div>
+        </div>
+      </section>
+
+      <!-- Whitelisted Pincodes -->
+      <section class="config-card">
+        <h2 class="card-title">Supported Delivery Pincodes</h2>
+        <p class="card-subtitle">Orders outside these pincodes will only be allowed for counter pickup.</p>
+
+        <div class="pincode-add-row">
+          <input 
+            type="text" 
+            maxlength="6" 
+            class="pincode-input" 
+            placeholder="Enter 6-digit Pincode (e.g. 440025)"
+            [ngModel]="newPincode()"
+            (ngModelChange)="newPincode.set($event)"
+            (keyup.enter)="addPincode()" />
+          <button type="button" class="btn-add-pin" (click)="addPincode()">
+            + Add Pincode
+          </button>
+        </div>
+
+        <div class="pincodes-chips-list">
+          @for (pin of pincodes(); track pin) {
+            <span class="pincode-chip">
+              <span>{{ pin }}</span>
+              <button type="button" class="btn-del-pin" (click)="removePincode(pin)" title="Remove">×</button>
+            </span>
+          }
+        </div>
+      </section>
+    </main>
+
+    <!-- RIGHT: Pricing Rules & In-house Fleet -->
+    <aside class="grid-side-col">
+      <!-- Pricing Rules Card -->
+      <section class="config-card">
+        <h2 class="card-title">Delivery Fees & Basket Rules</h2>
+
+        <div class="fields-stack">
+          <div class="form-group">
+            <label class="field-label">Minimum Order for Delivery</label>
+            <div class="input-prefix-box">
+              <span class="currency-tag">₹</span>
+              <input 
+                type="number" 
+                class="field-input" 
+                [ngModel]="minOrderAmount()"
+                (ngModelChange)="minOrderAmount.set(+$event)" />
+            </div>
+            <span class="field-hint">Customers cannot place orders below this value for delivery.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="field-label">Base Delivery Charge</label>
+            <div class="input-prefix-box">
+              <span class="currency-tag">₹</span>
+              <input 
+                type="number" 
+                class="field-input" 
+                [ngModel]="baseDeliveryFee()"
+                (ngModelChange)="baseDeliveryFee.set(+$event)" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="field-label">Free Delivery Threshold</label>
+            <div class="input-prefix-box">
+              <span class="currency-tag">₹</span>
+              <input 
+                type="number" 
+                class="field-input" 
+                [ngModel]="freeDeliveryAbove()"
+                (ngModelChange)="freeDeliveryAbove.set(+$event)" />
+            </div>
+            <span class="field-hint">Free delivery incentive helps increase average cart size.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Store Riders Roster -->
+      <section class="config-card">
+        <div class="card-header-row">
+          <h2 class="card-title">In-Store Delivery Riders</h2>
+          <span class="riders-count-pill">{{ riders().length }} Staff</span>
+        </div>
+
+        <div class="riders-list">
+          @for (r of riders(); track r.id) {
+            <div class="rider-card">
+              <div class="rider-top">
+                <div class="rider-avatar">{{ r.name.charAt(0) }}</div>
+                <div class="rider-info">
+                  <strong class="rider-name">{{ r.name }}</strong>
+                  <span class="rider-phone">{{ r.phone }}</span>
+                  <span class="rider-vehicle">{{ r.vehicle }}</span>
+                </div>
+              </div>
+
+              <div class="rider-bottom">
+                <span class="rider-status-pill" [class]="r.status.toLowerCase().replace(' ', '-')">
+                  {{ r.status }}
+                  @if (r.activeOrdersCount > 0) {
+                    <span>({{ r.activeOrdersCount }} active)</span>
+                  }
+                </span>
+
+                <button type="button" class="btn-toggle-shift" (click)="toggleRiderStatus(r.id)">
+                  {{ r.status === 'Available' ? 'Go Off-Shift' : 'Set Available' }}
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

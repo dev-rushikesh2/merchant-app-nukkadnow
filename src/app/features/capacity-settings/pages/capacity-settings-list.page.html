@@ -1,0 +1,259 @@
+<div class="capacity-viewport">
+  <!-- Toast -->
+  @if (toast()) {
+    <aside class="cap-toast" role="alert">
+      <svg viewBox="0 0 24 24" class="toast-svg" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      <span>{{ toast() }}</span>
+    </aside>
+  }
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Capacity & Pickup Slots</h1>
+      <p class="page-subtitle">Pacing limits to prevent kitchen congestion, define slot intervals, and manage pause windows.</p>
+    </div>
+
+    <div class="header-actions">
+      <a routerLink="/preorders" class="btn-link-preorders">
+        <span>View Scheduled Pre-orders ➔</span>
+      </a>
+      <button type="button" class="btn-save" (click)="saveSettings()">
+        Save Settings
+      </button>
+    </div>
+  </header>
+
+  <!-- 4 Overview Metric Cards -->
+  <section class="metrics-row" aria-label="Capacity summary">
+    <div class="metric-card purple-tint">
+      <span class="metric-label">Slot Duration</span>
+      <strong class="metric-val">{{ slotInterval() }}m</strong>
+      <span class="metric-sub">Pickup window interval</span>
+    </div>
+
+    <div class="metric-card emerald-tint">
+      <span class="metric-label">Slot Order Limit</span>
+      <strong class="metric-val emerald">{{ maxOrdersPerSlot() }}</strong>
+      <span class="metric-sub">Max orders per window</span>
+    </div>
+
+    <div class="metric-card orange-tint">
+      <span class="metric-label">Active Kitchen Cap</span>
+      <strong class="metric-val orange">{{ maxConcurrentActive() }}</strong>
+      <span class="metric-sub">Simultaneous active prep</span>
+    </div>
+
+    <div class="metric-card royal-tint">
+      <span class="metric-label">Prep Lead Time</span>
+      <strong class="metric-val purple">{{ kitchenLeadTime() }}m</strong>
+      <span class="metric-sub">Standard kitchen buffer</span>
+    </div>
+  </section>
+
+  <!-- Sub-tab Switcher -->
+  <nav class="subtab-nav" aria-label="Capacity views">
+    <button 
+      type="button" 
+      class="subtab-item" 
+      [class.active]="activeSubTab() === 'SLOTS'"
+      (click)="activeSubTab.set('SLOTS')">
+      ⏱️ Slot Interval & Pacing Limits
+    </button>
+    <button 
+      type="button" 
+      class="subtab-item" 
+      [class.active]="activeSubTab() === 'BLACKOUTS'"
+      (click)="activeSubTab.set('BLACKOUTS')">
+      🚫 Kitchen Blackout Windows ({{ blackoutWindows().length }})
+    </button>
+  </nav>
+
+  <!-- ============================================== -->
+  <!-- TAB 1: SLOTS & PACING (Screen 23)              -->
+  <!-- ============================================== -->
+  @if (activeSubTab() === 'SLOTS') {
+    <div class="slots-layout-grid">
+      <!-- Left Config Form -->
+      <section class="config-card">
+        <h2 class="card-title">Pickup Pacing Controls</h2>
+        <p class="card-subtitle">Control the rhythm of incoming customer pickups to guarantee prompt service.</p>
+
+        <!-- 1. Slot Duration Selector -->
+        <div class="field-section">
+          <label class="section-label">Slot Duration Interval</label>
+          <div class="intervals-pills-row">
+            <button 
+              type="button" 
+              class="interval-pill" 
+              [class.active]="slotInterval() === 15"
+              (click)="setInterval(15)">
+              15 mins
+            </button>
+            <button 
+              type="button" 
+              class="interval-pill" 
+              [class.active]="slotInterval() === 30"
+              (click)="setInterval(30)">
+              30 mins (Recommended)
+            </button>
+            <button 
+              type="button" 
+              class="interval-pill" 
+              [class.active]="slotInterval() === 45"
+              (click)="setInterval(45)">
+              45 mins
+            </button>
+            <button 
+              type="button" 
+              class="interval-pill" 
+              [class.active]="slotInterval() === 60"
+              (click)="setInterval(60)">
+              60 mins
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Numeric Steppers -->
+        <div class="steppers-grid">
+          <div class="stepper-field">
+            <label class="field-label">Max Orders per Slot</label>
+            <div class="stepper-box">
+              <button type="button" class="btn-step" (click)="maxOrdersPerSlot.set(maxOrdersPerSlot() - 1)">−</button>
+              <input type="number" class="step-input" [ngModel]="maxOrdersPerSlot()" (ngModelChange)="maxOrdersPerSlot.set(+$event)" />
+              <button type="button" class="btn-step" (click)="maxOrdersPerSlot.set(maxOrdersPerSlot() + 1)">+</button>
+            </div>
+            <span class="field-hint">Slot closes automatically when reached.</span>
+          </div>
+
+          <div class="stepper-field">
+            <label class="field-label">Max Concurrent In-Kitchen</label>
+            <div class="stepper-box">
+              <button type="button" class="btn-step" (click)="maxConcurrentActive.set(maxConcurrentActive() - 1)">−</button>
+              <input type="number" class="step-input" [ngModel]="maxConcurrentActive()" (ngModelChange)="maxConcurrentActive.set(+$event)" />
+              <button type="button" class="btn-step" (click)="maxConcurrentActive.set(maxConcurrentActive() + 1)">+</button>
+            </div>
+            <span class="field-hint">Paces delivery and pickup queue.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Today's Live Slots Table -->
+      <section class="slots-live-card">
+        <div class="card-header-row">
+          <div class="header-titles">
+            <h2 class="card-title">Today's Pickup Slots</h2>
+            <span class="live-tag">● Live Status</span>
+          </div>
+        </div>
+
+        <div class="slots-table-list">
+          @for (slot of todaySlots(); track slot.id) {
+            <div class="slot-row" [class.paused]="slot.status === 'Paused'">
+              <div class="slot-time-col">
+                <strong class="slot-time">{{ slot.timeRange }}</strong>
+                <span class="slot-status-pill" [class]="slot.status.toLowerCase().replace(' ', '-')">
+                  {{ slot.status }}
+                </span>
+              </div>
+
+              <!-- Capacity Progress Bar -->
+              <div class="slot-progress-col">
+                <div class="progress-meta">
+                  <span>{{ slot.bookedCount }} / {{ slot.capacity }} booked</span>
+                  <strong>{{ Math.round((slot.bookedCount / slot.capacity) * 100) }}%</strong>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-bar" [style.width.%]="(slot.bookedCount / slot.capacity) * 100" [class.full]="slot.bookedCount >= slot.capacity"></div>
+                </div>
+              </div>
+
+              <!-- Pause / Resume Toggle -->
+              <div class="slot-action-col">
+                <button type="button" class="btn-slot-toggle" [class.resume]="slot.status === 'Paused'" (click)="toggleSlotPause(slot.id)">
+                  {{ slot.status === 'Paused' ? 'Open' : 'Pause' }}
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  }
+
+  <!-- ============================================== -->
+  <!-- TAB 2: BLACKOUT WINDOWS (Screen 23 Sub-view)   -->
+  <!-- ============================================== -->
+  @if (activeSubTab() === 'BLACKOUTS') {
+    <div class="blackout-section">
+      <div class="blackout-header-bar">
+        <p class="section-desc">During blackout windows, pickup slots are automatically hidden so your kitchen can take breaks, prep, or clean.</p>
+        <button type="button" class="btn-primary-add" (click)="showAddBlackoutModal.set(true)">
+          + Add Blackout Window
+        </button>
+      </div>
+
+      <div class="blackout-cards-grid">
+        @for (b of blackoutWindows(); track b.id) {
+          <div class="blackout-card" [class.inactive]="!b.isActive">
+            <div class="bo-header">
+              <strong class="bo-title">{{ b.name }}</strong>
+              <label class="switch-wrap">
+                <input type="checkbox" [checked]="b.isActive" (change)="toggleBlackout(b.id)" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="bo-time-range">
+              <span class="clock-icon">🕒</span>
+              <strong class="time-range-text">{{ b.startTime }} – {{ b.endTime }}</strong>
+            </div>
+
+            <div class="bo-days">
+              <span>Repeats: {{ b.days.join(', ') }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ADD BLACKOUT MODAL -->
+  @if (showAddBlackoutModal()) {
+    <div class="modal-backdrop" (click)="showAddBlackoutModal.set(false)">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <h3>Add Kitchen Blackout Window</h3>
+          <button type="button" class="btn-close" (click)="showAddBlackoutModal.set(false)">×</button>
+        </header>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Window Reason / Name</label>
+            <input type="text" class="form-input" placeholder="e.g. Afternoon Kitchen Break" [ngModel]="newBlackoutName()" (ngModelChange)="newBlackoutName.set($event)" />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Start Time</label>
+              <input type="time" class="form-input" [ngModel]="newBlackoutStart()" (ngModelChange)="newBlackoutStart.set($event)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Time</label>
+              <input type="time" class="form-input" [ngModel]="newBlackoutEnd()" (ngModelChange)="newBlackoutEnd.set($event)" />
+            </div>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn-modal-cancel" (click)="showAddBlackoutModal.set(false)">Cancel</button>
+          <button type="button" class="btn-modal-submit" [disabled]="!newBlackoutName().trim()" (click)="addBlackout()">
+            Save Blackout
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>
