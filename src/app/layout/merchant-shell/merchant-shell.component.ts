@@ -11,10 +11,8 @@ import { MerchantBottomNavComponent } from '../bottom-nav/merchant-bottom-nav.co
   standalone: true,
   imports: [CommonModule, SidebarComponent, TopbarComponent, MerchantBottomNavComponent],
   template: `
-    @if (isAuthOrOnboarding()) {
-      <ng-content></ng-content>
-    } @else {
-      <div class="merchant-layout">
+    <div class="merchant-layout" [class.auth-mode]="isAuthOrOnboarding()">
+      @if (!isAuthOrOnboarding()) {
         <!-- Desktop Sidebar -->
         <merchant-sidebar class="layout-sidebar"></merchant-sidebar>
 
@@ -28,20 +26,25 @@ import { MerchantBottomNavComponent } from '../bottom-nav/merchant-bottom-nav.co
             </merchant-sidebar>
           </div>
         }
+      }
 
-        <div class="layout-main">
+      <div class="layout-main" [class.full-width]="isAuthOrOnboarding()">
+        @if (!isAuthOrOnboarding()) {
           <merchant-topbar (toggleMenu)="toggleMobileMenu()"></merchant-topbar>
-          <main class="layout-content">
-            <div class="content-wrapper">
-              <ng-content></ng-content>
-            </div>
-          </main>
-        </div>
+        }
 
+        <main class="layout-content" [class.no-padding]="isAuthOrOnboarding()">
+          <div class="content-wrapper" [class.full-width]="isAuthOrOnboarding()">
+            <ng-content></ng-content>
+          </div>
+        </main>
+      </div>
+
+      @if (!isAuthOrOnboarding()) {
         <!-- Mobile Bottom Navigation -->
         <merchant-bottom-nav></merchant-bottom-nav>
-      </div>
-    }
+      }
+    </div>
   `,
   styles: [`
     .merchant-layout {
@@ -49,6 +52,10 @@ import { MerchantBottomNavComponent } from '../bottom-nav/merchant-bottom-nav.co
       min-height: 100vh;
       background: var(--color-background, #F8FAFC);
       position: relative;
+    }
+
+    .merchant-layout.auth-mode {
+      background: transparent;
     }
 
     .layout-sidebar {
@@ -73,16 +80,28 @@ import { MerchantBottomNavComponent } from '../bottom-nav/merchant-bottom-nav.co
       }
     }
 
+    .layout-main.full-width {
+      padding-bottom: 0;
+    }
+
     .layout-content {
       flex: 1;
       overflow-y: auto;
       padding: clamp(12px, 2.5vw, 24px);
     }
 
+    .layout-content.no-padding {
+      padding: 0;
+    }
+
     .content-wrapper {
       max-width: var(--content-max-width, 1400px);
       margin: 0 auto;
       width: 100%;
+    }
+
+    .content-wrapper.full-width {
+      max-width: 100%;
     }
 
     /* Mobile Drawer */

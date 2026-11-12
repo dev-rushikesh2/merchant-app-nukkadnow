@@ -30,9 +30,6 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@angular/*": ["node_modules/@angular/*"],
-      "rxjs": ["node_modules/rxjs"],
-      "rxjs/*": ["node_modules/rxjs/*"],
       "@nukkadnow/ui": ["libs/ui/src/index.ts"],
       "@nukkadnow/api-client": ["libs/api-client/src/index.ts"],
       "@nukkadnow/auth-client": ["libs/auth-client/src/index.ts"],
