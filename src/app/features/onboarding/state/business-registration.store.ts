@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import {
   BusinessTypeId,
   BusinessTypeItem,
@@ -12,11 +12,18 @@ import {
   ApplicationStatusCode,
   ApplicationStatusInfo
 } from '../models/business-registration.model';
+import { RegistrationApi, SaveDraftPayload } from '../data-access/registration.api';
 
 @Injectable({
   providedIn: 'root'
 })
 export class BusinessRegistrationStore {
+  private readonly registrationApi = inject(RegistrationApi);
+
+  // Sync state
+  readonly isSyncing = signal<boolean>(false);
+  readonly syncError = signal<string | null>(null);
+
   // Navigation: Step 1 (Type) to 8 (Status)
   // 1: Business Type, 2: Details, 3: Location, 4: Hours, 5: Fulfilment, 6: Verify, 7: Review, 8: Status
   readonly currentStep = signal<number>(1);
@@ -208,6 +215,7 @@ export class BusinessRegistrationStore {
   // Actions
   setBusinessType(id: BusinessTypeId): void {
     this.selectedBusinessType.set(id);
+    this.persistDraft();
   }
 
   updateDetails(partial: Partial<BusinessDetails>): void {
@@ -220,6 +228,7 @@ export class BusinessRegistrationStore {
 
   toggleHomeBusinessPrivacy(): void {
     this.location.update(prev => ({ ...prev, homeBusinessPrivacy: !prev.homeBusinessPrivacy }));
+    this.persistDraft();
   }
 
   toggleDay(short: string): void {
@@ -241,6 +250,7 @@ export class BusinessRegistrationStore {
       }
       return { ...prev, scheduleMode: mode };
     });
+    this.persistDraft();
   }
 
   updateDayHours(short: string, field: 'openTime' | 'closeTime' | 'breakTime', val: string): void {
@@ -252,10 +262,12 @@ export class BusinessRegistrationStore {
 
   toggleStorePickup(): void {
     this.fulfilment.update(prev => ({ ...prev, storePickup: !prev.storePickup }));
+    this.persistDraft();
   }
 
   toggleMerchantDelivery(): void {
     this.fulfilment.update(prev => ({ ...prev, merchantDelivery: !prev.merchantDelivery }));
+    this.persistDraft();
   }
 
   updateFulfilment(partial: Partial<FulfilmentConfig>): void {
@@ -266,6 +278,20 @@ export class BusinessRegistrationStore {
     this.documents.update(prev =>
       prev.map(d => (d.id === docId ? { ...d, uploaded: true, fileName, fileSize } : d))
     );
+    const doc = this.documents().find(d => d.id === docId);
+    if (doc) {
+      const typeMap: Record<string, string> = {
+        pan: 'PAN',
+        owner_id: 'OWNER_ID',
+        business_proof: 'BUSINESS_PROOF'
+      };
+      this.registrationApi.uploadDocument(this.applicationId(), {
+        documentType: typeMap[docId] || 'BUSINESS_PROOF',
+        fileName,
+        fileUrl: `https://storage.nukkadnow.internal/docs/${fileName}`,
+        fileSize
+      }).subscribe();
+    }
   }
 
   removeDocument(docId: string): void {
@@ -276,6 +302,12 @@ export class BusinessRegistrationStore {
 
   uploadLicence(fileName: string, fileSize: string = '2.1 MB'): void {
     this.optionalLicence.set({ uploaded: true, fileName, fileSize });
+    this.registrationApi.uploadDocument(this.applicationId(), {
+      documentType: 'CATEGORY_LICENCE',
+      fileName,
+      fileUrl: `https://storage.nukkadnow.internal/docs/${fileName}`,
+      fileSize
+    }).subscribe();
   }
 
   removeLicence(): void {
@@ -292,12 +324,22 @@ export class BusinessRegistrationStore {
 
   setPreviewStatus(code: ApplicationStatusCode): void {
     this.activePreviewStatus.set(code);
+    // Sync verification status with backend for audit tracking
+    const statusMap: Record<ApplicationStatusCode, string> = {
+      submitted: 'SUBMITTED',
+      under_review: 'UNDER_REVIEW',
+      action_required: 'ACTION_REQUIRED',
+      approved: 'APPROVED',
+      rejected: 'REJECTED'
+    };
+    this.registrationApi.updateStatus(this.applicationId(), statusMap[code]).subscribe();
   }
 
   nextStep(): void {
     const next = this.currentStep() + 1;
     if (next <= 8) {
       this.currentStep.set(next);
+      this.persistDraft();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
@@ -313,10 +355,74 @@ export class BusinessRegistrationStore {
   goToStep(step: number): void {
     if (step >= 1 && step <= 8) {
       this.currentStep.set(step);
+      this.persistDraft();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 
+  /**
+   * Persists draft registration data to backend DB via API Gateway
+   */
+  persistDraft(): void {
+    const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const payload: SaveDraftPayload = {
+      applicationId: this.applicationId(),
+      currentStep: this.currentStep(),
+      businessType: this.selectedBusinessType(),
+      businessName: this.details().businessName,
+      ownerName: this.details().ownerName,
+      mobileNumber: this.details().mobileNumber,
+      email: this.details().email,
+      businessCategory: this.details().category,
+      businessDescription: this.details().description,
+      pincode: this.location().pincode,
+      state: this.location().state,
+      district: this.location().district,
+      city: this.location().city,
+      locality: this.location().locality,
+      fullAddress: this.location().fullAddress,
+      latitude: this.location().coordinates.lat,
+      longitude: this.location().coordinates.lng,
+      homeBusinessPrivacy: this.location().homeBusinessPrivacy,
+      scheduleMode: this.hours().scheduleMode,
+      operatingHours: this.hours().days.map(d => ({
+        dayOfWeek: dayMap.indexOf(d.short),
+        dayShort: d.short,
+        isOpen: d.isOpen,
+        openTime: d.openTime,
+        closeTime: d.closeTime,
+        breakTime: d.breakTime
+      })),
+      holidays: this.hours().holidays,
+      storePickup: this.fulfilment().storePickup,
+      merchantDelivery: this.fulfilment().merchantDelivery,
+      serviceRadius: this.fulfilment().serviceRadius,
+      minOrderValue: this.fulfilment().minOrderValue,
+      prepTime: this.fulfilment().prepTime,
+      bankAccountHolder: this.bankDetails().accountHolderName,
+      bankAccountNumber: this.bankDetails().accountNumber,
+      bankIfscCode: this.bankDetails().ifscCode,
+      bankName: this.bankDetails().bankName,
+    };
+
+    this.isSyncing.set(true);
+    this.registrationApi.saveDraft(payload).subscribe({
+      next: res => {
+        this.isSyncing.set(false);
+        if (res?.applicationId && res.applicationId !== this.applicationId()) {
+          this.applicationId.set(res.applicationId);
+        }
+      },
+      error: err => {
+        this.isSyncing.set(false);
+        this.syncError.set('Could not sync with cloud, saved locally');
+      }
+    });
+  }
+
+  /**
+   * Final Submission to Backend Database
+   */
   submitRegistration(): void {
     const now = new Date();
     const formatted = `${now.getDate()} Nov ${now.getFullYear()}, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -324,5 +430,49 @@ export class BusinessRegistrationStore {
     this.currentStep.set(8);
     this.activePreviewStatus.set('under_review');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    this.isSyncing.set(true);
+    this.registrationApi.submit(this.applicationId(), this.termsAgreed()).subscribe({
+      next: res => {
+        this.isSyncing.set(false);
+        if (res?.applicationId) {
+          this.applicationId.set(res.applicationId);
+        }
+      },
+      error: err => {
+        this.isSyncing.set(false);
+      }
+    });
+  }
+
+  /**
+   * Dynamic DB status loader
+   */
+  loadRegistration(identifier: string): void {
+    this.isSyncing.set(true);
+    this.registrationApi.getStatus(identifier).subscribe({
+      next: res => {
+        this.isSyncing.set(false);
+        if (res?.applicationId) {
+          this.applicationId.set(res.applicationId);
+        }
+        if (res?.status) {
+          const map: Record<string, ApplicationStatusCode> = {
+            'SUBMITTED': 'under_review',
+            'UNDER_REVIEW': 'under_review',
+            'ACTION_REQUIRED': 'action_required',
+            'APPROVED': 'approved',
+            'REJECTED': 'rejected'
+          };
+          this.activePreviewStatus.set(map[res.status] || 'under_review');
+        }
+        if (res?.currentStep) {
+          this.currentStep.set(res.currentStep);
+        }
+      },
+      error: () => {
+        this.isSyncing.set(false);
+      }
+    });
   }
 }
