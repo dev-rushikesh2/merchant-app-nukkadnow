@@ -2,7 +2,7 @@
 import { HttpClientAdapter } from '@nukkadnow/api-client';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { InventoryItem, StockMovementRecord, INITIAL_INVENTORY, INITIAL_MOVEMENTS } from '../models/inventory-view.model';
+import { InventoryItem, StockMovementRecord } from '../models/inventory-view.model';
 
 @Injectable({ providedIn: 'root' })
 export class InventoryApi {
@@ -12,7 +12,7 @@ export class InventoryApi {
   fetchInventory(outletId = 'outlet-main'): Observable<InventoryItem[]> {
     return this.http.get<any[]>(this.baseUrl, { outletId }).pipe(
       map(items => {
-        if (!items || items.length === 0) return INITIAL_INVENTORY;
+        if (!items || items.length === 0) return [];
         return items.flatMap(prod =>
           (prod.variants || []).map((v: any) => ({
             id: v.id,
@@ -29,8 +29,8 @@ export class InventoryApi {
         );
       }),
       catchError(err => {
-        console.warn('Inventory API offline or unreachable, falling back to local state:', err);
-        return of(INITIAL_INVENTORY);
+        console.warn('Inventory API error or unreachable:', err);
+        return of([]);
       })
     );
   }
@@ -44,8 +44,8 @@ export class InventoryApi {
   }): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/adjust`, payload).pipe(
       catchError(err => {
-        console.warn('adjustStock server call failed, local optimistic update maintained:', err);
-        return of({ success: true, localOnly: true });
+        console.warn('adjustStock server call failed:', err);
+        return of({ success: false });
       })
     );
   }
@@ -53,25 +53,28 @@ export class InventoryApi {
   fetchMovements(outletId = 'outlet-main', limit = 50): Observable<StockMovementRecord[]> {
     return this.http.get<any[]>(`${this.baseUrl}/movements`, { outletId, limit }).pipe(
       map(records => {
-        if (!records || records.length === 0) return INITIAL_MOVEMENTS;
+        if (!records || records.length === 0) return [];
         return records.map((r: any) => ({
           id: r.id,
           productId: r.referenceId || r.variantId,
           productTitle: `Variant ${r.variantId.slice(-6)}`,
-          delta: r.quantityChange,
-          previousStock: r.balanceAfter - r.quantityChange,
-          newStock: r.balanceAfter,
-          reason: r.reason,
-          note: r.notes,
-          actorName: r.actorId,
-          timestamp: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          delta: r.quantity,
+          previousStock: r.previousStock ?? 0,
+          newStock: r.newStock ?? 0,
+          reason: r.reason || 'RESTOCK',
+          note: r.note,
+          actorName: r.actorName || 'Inventory Manager',
+          timestamp: r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
         }));
       }),
-      catchError(() => of(INITIAL_MOVEMENTS))
+      catchError(err => {
+        console.warn('fetchMovements API error:', err);
+        return of([]);
+      })
     );
   }
 
-  fetchList(): Observable<any[]> {
-    return this.fetchInventory();
+  fetchList(outletId?: string): Observable<InventoryItem[]> {
+    return this.fetchInventory(outletId);
   }
 }

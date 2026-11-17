@@ -1,28 +1,51 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { DashboardKpis, DashboardActivity } from '../models/dashboard-view.model';
+import { DashboardApi } from '../data-access/dashboard.api';
 
-const INITIAL_KPIS: DashboardKpis = {
-  ordersToday: 48,
-  pendingActionOrders: 3,
-  inPrepOrders: 5,
-  readyOrders: 2,
-  todaysGrossSalesPaise: 1485000, // ₹14,850
-  todaysNetPayoutPaise: 1455300,  // ₹14,553
-  lowStockCount: 2,
-  nextSlotBookedCount: 8,
-  nextSlotCapacity: 10,
-  nextSlotTime: '10:30 AM – 10:45 AM'
-};
-
-const INITIAL_ACTIVITIES: DashboardActivity[] = [
-  { id: 'act-1', title: 'New Order #NK-1024 received from Anjali S.', time: '2 mins ago', type: 'ORDER' },
-  { id: 'act-2', title: 'Walk-in Order #WK-504 billed by Cashier (₹180)', time: '8 mins ago', type: 'PAYMENT' },
-  { id: 'act-3', title: 'Slot 10:30 AM reached 80% capacity limit', time: '14 mins ago', type: 'CAPACITY' },
-  { id: 'act-4', title: 'Low Stock Alert: Besan Ladoo 1kg (3 left)', time: '1 hour ago', type: 'STOCK' }
-];
-
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class DashboardStore {
-  readonly kpis = signal<DashboardKpis>(INITIAL_KPIS);
-  readonly activities = signal<DashboardActivity[]>(INITIAL_ACTIVITIES);
+  private api = inject(DashboardApi);
+
+  readonly kpis = signal<DashboardKpis>({
+    ordersToday: 0,
+    pendingActionOrders: 0,
+    inPrepOrders: 0,
+    readyOrders: 0,
+    todaysGrossSalesPaise: 0,
+    todaysNetPayoutPaise: 0,
+    lowStockCount: 0,
+    nextSlotBookedCount: 0,
+    nextSlotCapacity: 0,
+    nextSlotTime: ''
+  });
+  readonly activities = signal<DashboardActivity[]>([]);
+  readonly loading = signal<boolean>(false);
+
+  constructor() {
+    this.load();
+  }
+
+  load(): void {
+    this.loading.set(true);
+    this.api.fetchDashboardSummary().subscribe({
+      next: (data) => {
+        if (data) {
+          this.kpis.set({
+            ordersToday: data.performance.orders,
+            pendingActionOrders: data.activeOrdersCount,
+            inPrepOrders: data.activeOrdersCount,
+            readyOrders: data.pendingPickupCount,
+            todaysGrossSalesPaise: data.todayRevenuePaise,
+            todaysNetPayoutPaise: Math.round(data.todayRevenuePaise * 0.98),
+            lowStockCount: 0,
+            nextSlotBookedCount: data.pendingPickupCount,
+            nextSlotCapacity: 20,
+            nextSlotTime: 'Active Daily Slot'
+          });
+        }
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false)
+    });
+  }
 }

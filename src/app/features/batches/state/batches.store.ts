@@ -1,65 +1,9 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { BatchViewModel, BatchStatus } from '../models/batches-view.model';
 
-const INITIAL_BATCHES: BatchViewModel[] = [
-  {
-    id: 'batch-001',
-    batchName: 'Evening Fresh Tarri Poha & Samosas',
-    productName: 'Nagpur Tarri Poha (Special Plate)',
-    productId: 'p-101',
-    productionDate: '2026-11-11',
-    readyTime: '17:00',
-    cutoffTime: '16:15',
-    totalCapacityUnits: 60,
-    bookedUnits: 48,
-    unitPricePaise: 4000, // ₹40
-    status: 'OPEN_FOR_ORDERS',
-    preorders: [
-      { orderId: '#NK-2001', customerName: 'Sameer D.', quantity: 4, paymentStatus: 'PAID', pickupSlot: '05:00 PM' },
-      { orderId: '#NK-2004', customerName: 'Priya K.', quantity: 6, paymentStatus: 'PAID', pickupSlot: '05:15 PM' },
-      { orderId: '#NK-2009', customerName: 'Rohan M.', quantity: 12, paymentStatus: 'PAID', pickupSlot: '05:00 PM' }
-    ],
-    instructions: 'Extra chopped onions & fresh sev topping separated.'
-  },
-  {
-    id: 'batch-002',
-    batchName: 'Diwali Besan Ladoo Pure Desi Ghee',
-    productName: 'Desi Ghee Besan Ladoo (1kg Box)',
-    productId: 'p-102',
-    productionDate: '2026-11-12',
-    readyTime: '11:00',
-    cutoffTime: '08:00',
-    totalCapacityUnits: 40,
-    bookedUnits: 40,
-    unitPricePaise: 45000, // ₹450
-    status: 'CUTOFF_REACHED',
-    preorders: [
-      { orderId: '#NK-2015', customerName: 'Sunita P.', quantity: 5, paymentStatus: 'PAID', pickupSlot: '11:30 AM' },
-      { orderId: '#NK-2020', customerName: 'Amit V.', quantity: 10, paymentStatus: 'PAID', pickupSlot: '12:00 PM' }
-    ],
-    instructions: 'Packed in gift boxes with foil wrap.'
-  },
-  {
-    id: 'batch-003',
-    batchName: 'Morning Artisan Sourdough Batch',
-    productName: 'Country Sourdough Loaf (450g)',
-    productId: 'p-103',
-    productionDate: '2026-11-13',
-    readyTime: '08:00',
-    cutoffTime: '20:00', // Previous evening 8 PM
-    totalCapacityUnits: 25,
-    bookedUnits: 14,
-    unitPricePaise: 18000, // ₹180
-    status: 'SCHEDULED',
-    preorders: [
-      { orderId: '#NK-2032', customerName: 'Vikram S.', quantity: 2, paymentStatus: 'PAID', pickupSlot: '08:30 AM' }
-    ]
-  }
-];
-
 @Injectable()
 export class BatchesStore {
-  readonly batches = signal<BatchViewModel[]>(INITIAL_BATCHES);
+  readonly batches = signal<BatchViewModel[]>([]);
   readonly filter = signal<string>('ALL');
 
   readonly filteredBatches = computed(() => {
@@ -68,17 +12,26 @@ export class BatchesStore {
     if (f === 'ACTIVE') {
       return list.filter(b => b.status === 'OPEN_FOR_ORDERS' || b.status === 'PREPARING');
     }
+    const todayStr = new Date().toISOString().split('T')[0];
     if (f === 'TODAY') {
-      return list.filter(b => b.productionDate === '2026-11-11');
+      return list.filter(b => b.productionDate === todayStr);
     }
     if (f === 'UPCOMING') {
-      return list.filter(b => b.productionDate > '2026-11-11');
+      return list.filter(b => b.productionDate > todayStr);
     }
     return list;
   });
 
   readonly totalPreorderValuePaise = computed(() => {
     return this.batches().reduce((sum, b) => sum + (b.bookedUnits * b.unitPricePaise), 0);
+  });
+
+  readonly totalActiveBatches = computed(() => {
+    return this.batches().filter(b => b.status === 'OPEN_FOR_ORDERS' || b.status === 'PREPARING').length;
+  });
+
+  readonly totalBookedUnits = computed(() => {
+    return this.batches().reduce((sum, b) => sum + b.bookedUnits, 0);
   });
 
   setFilter(f: string): void {

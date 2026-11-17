@@ -30,8 +30,8 @@ export class AuthStore {
 
     this.api.requestOtp(phoneNumber).subscribe({
       next: (res) => {
-        this.challengeId.set(res.challengeId);
-        this.startCooldown(res.cooldownSeconds);
+        this.challengeId.set(res.challengeId || null);
+        this.startCooldown(res.cooldownSeconds || 60);
         this.loading.set(false);
         this.router.navigate(['/auth/verify-otp']);
       },

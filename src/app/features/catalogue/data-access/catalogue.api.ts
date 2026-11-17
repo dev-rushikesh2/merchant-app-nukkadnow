@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClientAdapter } from '@nukkadnow/api-client';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { ProductItem, INITIAL_PRODUCTS } from '../models/catalogue-view.model';
+import { ProductItem } from '../models/catalogue-view.model';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogueApi {
@@ -12,7 +12,7 @@ export class CatalogueApi {
   fetchProducts(outletId = 'outlet-main'): Observable<ProductItem[]> {
     return this.http.get<any[]>(this.baseUrl, { outletId }).pipe(
       map(items => {
-        if (!items || items.length === 0) return INITIAL_PRODUCTS;
+        if (!items || items.length === 0) return [];
         return items.map((p: any) => ({
           id: p.id,
           outletId: p.outletId,
@@ -36,19 +36,18 @@ export class CatalogueApi {
         }));
       }),
       catchError(err => {
-        console.warn('Catalog API offline or unreachable, falling back to local state:', err);
-        return of(INITIAL_PRODUCTS);
+        console.warn('Catalog API error or unreachable:', err);
+        return of([]);
       })
     );
   }
 
   createProduct(product: ProductItem): Observable<any> {
     const payload = {
-      tenantId: 'tenant-default',
-      outletId: product.outletId || 'outlet-main',
       name: product.title,
       description: product.description,
       category: product.category,
+      outletId: product.outletId,
       variants: product.variants.length > 0
         ? product.variants.map(v => ({
             name: v.name,
@@ -66,28 +65,14 @@ export class CatalogueApi {
           ],
     };
 
-    return this.http.post<any>(this.baseUrl, payload).pipe(
-      catchError(err => {
-        console.warn('createProduct remote failed, maintaining local:', err);
-        return of({ id: product.id, ...payload });
-      })
-    );
+    return this.http.post<any>(this.baseUrl, payload);
   }
 
-  updatePricing(productId: string, variantId: string, pricePaise: number, compareAtPricePaise?: number): Observable<any> {
-    return this.http.patch<any>(`${this.baseUrl}/${productId}/pricing`, {
-      variantId,
-      pricePaise,
-      compareAtPricePaise,
-    }).pipe(
-      catchError(err => {
-        console.warn('updatePricing remote failed, maintaining local:', err);
-        return of({ success: true });
-      })
-    );
+  updatePricing(productId: string, payload: { variantId: string; pricePaise: number }): Observable<any> {
+    return this.http.patch<any>(`${this.baseUrl}/${productId}/pricing`, payload);
   }
 
-  fetchList(): Observable<ProductItem[]> {
-    return this.fetchProducts();
+  fetchList(outletId?: string): Observable<ProductItem[]> {
+    return this.fetchProducts(outletId);
   }
 }

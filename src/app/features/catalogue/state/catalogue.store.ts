@@ -1,19 +1,33 @@
 ﻿import { Injectable, signal, computed, inject } from '@angular/core';
 import { CatalogueApi } from '../data-access/catalogue.api';
-import { ProductItem, INITIAL_PRODUCTS } from '../models/catalogue-view.model';
+import { ProductItem } from '../models/catalogue-view.model';
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
+import { OutletSwitcherStore } from '../../../core/outlet-context/outlet-switcher.store';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogueStore {
   private api = inject(CatalogueApi);
+  private authStore = inject(MerchantAuthStore);
+  private outletStore = inject(OutletSwitcherStore);
 
-  readonly products = signal<ProductItem[]>(INITIAL_PRODUCTS);
+  readonly products = signal<ProductItem[]>([]);
   readonly selectedCategory = signal<string>('All');
   readonly searchQuery = signal<string>('');
   readonly loading = signal<boolean>(false);
   readonly currentOutletId = signal<string>('outlet-main');
 
   constructor() {
-    this.loadProducts();
+    this.init();
+  }
+
+  private init(): void {
+    const outletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+    this.loadProducts(outletId);
+
+    this.authStore.tenantSwitched$.subscribe(() => {
+      const newOutletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+      this.loadProducts(newOutletId);
+    });
   }
 
   loadProducts(outletId = 'outlet-main') {
@@ -21,12 +35,13 @@ export class CatalogueStore {
     this.loading.set(true);
     this.api.fetchProducts(outletId).subscribe({
       next: (data) => {
-        if (data && data.length > 0) {
-          this.products.set(data);
-        }
+        this.products.set(data || []);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.products.set([]);
+        this.loading.set(false);
+      },
     });
   }
 

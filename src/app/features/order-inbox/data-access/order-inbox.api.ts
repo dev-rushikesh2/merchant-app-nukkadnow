@@ -1,15 +1,38 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { delay } from 'rxjs/operators';
-import { OrderInboxItem, INITIAL_INBOX_ORDERS } from '../models/order-inbox-view.model';
+import { Injectable, inject } from '@angular/core';
+import { HttpClientAdapter } from '@nukkadnow/api-client';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { OrderInboxItem } from '../models/order-inbox-view.model';
+
+export interface OrderApiResponse {
+  success: boolean;
+  data: any[];
+  liveOrders?: any[];
+  pastOrders?: any[];
+  summary?: {
+    total: number;
+    new: number;
+    preparing: number;
+    ready: number;
+    completed: number;
+  };
+}
 
 @Injectable({ providedIn: 'root' })
 export class OrderInboxApi {
-  fetchOrders(): Observable<OrderInboxItem[]> {
-    return of(INITIAL_INBOX_ORDERS).pipe(delay(300));
+  private readonly http = inject(HttpClientAdapter);
+  private readonly baseUrl = '/api/v1/merchant/orders';
+
+  fetchOrders(params?: { status?: string; subTab?: string; q?: string }): Observable<OrderApiResponse> {
+    return this.http.get<OrderApiResponse>(this.baseUrl, params);
   }
 
-  fetchList(): Observable<OrderInboxItem[]> {
-    return this.fetchOrders();
+  fetchList(params?: any): Observable<OrderApiResponse> {
+    return this.fetchOrders(params);
+  }
+
+  updateOrderStatus(orderId: string, status: 'New' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled', prepMinutes?: number): Observable<any> {
+    const cleanId = encodeURIComponent(orderId.replace('#', ''));
+    return this.http.patch<any>(`${this.baseUrl}/${cleanId}/status`, { status, prepMinutes });
   }
 }

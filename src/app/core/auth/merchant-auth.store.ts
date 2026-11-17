@@ -2,7 +2,9 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { TenantStore } from '../tenant-context/tenant.store';
+import { OutletSwitcherStore } from '../outlet-context/outlet-switcher.store';
 import { TokenStorageService, AuthStateService, AuthUser } from '@nukkadnow/auth-client';
+import { Subject } from 'rxjs';
 
 export interface SeededMerchantAccount {
   id: string;
@@ -28,8 +30,12 @@ export interface SeededMerchantAccount {
 export class MerchantAuthStore {
   private readonly http = inject(HttpClient);
   private readonly tenantStore = inject(TenantStore);
+  private readonly outletStore = inject(OutletSwitcherStore);
   private readonly tokenStorage = inject(TokenStorageService);
   private readonly authState = inject(AuthStateService);
+
+  // Observable event fired when merchant/tenant is switched so all components can reload
+  readonly tenantSwitched$ = new Subject<string>();
 
   // 4 Core Seeded Merchants + Platform Admin
   readonly seededMerchants: SeededMerchantAccount[] = [
@@ -135,15 +141,12 @@ export class MerchantAuthStore {
 
   private initSession(): void {
     const savedTenantId = localStorage.getItem('nk_active_tenant_id');
+    let target = this.seededMerchants[1];
     if (savedTenantId) {
       const match = this.seededMerchants.find(m => m.tenantId === savedTenantId);
-      if (match) {
-        this.applyMerchantContext(match, false);
-        return;
-      }
+      if (match) target = match;
     }
-    // Default apply Kirana
-    this.applyMerchantContext(this.seededMerchants[1], false);
+    this.switchMerchant(target);
   }
 
   toggleSwitcher(): void {
@@ -155,34 +158,39 @@ export class MerchantAuthStore {
   }
 
   /**
-   * Switches active merchant, synchronizes tenant token, and updates global tenant context
+   * Switches active merchant, synchronizes tenant token from real API, and updates global tenant context
    */
   switchMerchant(account: SeededMerchantAccount): void {
     this.isLoading.set(true);
     this.isSwitcherOpen.set(false);
+    this.authError.set(null);
 
     // Call backend login to get a real signed JWT for this tenant
     const loginUrl = `${environment.apiGatewayUrl}/merchant/auth/login`;
-    this.http.post<any>(loginUrl, { phoneNumber: account.phoneNumber }).subscribe({
+    this.http.post<any>(loginUrl, { phoneNumber: account.phoneNumber, tenantId: account.tenantId }).subscribe({
       next: res => {
         if (res?.accessToken) {
           this.tokenStorage.setAccessToken(res.accessToken);
           if (res?.refreshToken) this.tokenStorage.setRefreshToken(res.refreshToken);
         }
-        this.applyMerchantContext(account, true);
+        this.applyMerchantContext(account);
         this.isLoading.set(false);
+        this.tenantSwitched$.next(account.tenantId);
       },
-      error: () => {
-        // Fallback for standalone frontend execution
-        this.applyMerchantContext(account, true);
+      error: err => {
+        this.authError.set('Authentication error connecting to NukkadNow API Gateway.');
         this.isLoading.set(false);
+        // Apply context with tenant credentials
+        this.applyMerchantContext(account);
+        this.tenantSwitched$.next(account.tenantId);
       }
     });
   }
 
-  private applyMerchantContext(account: SeededMerchantAccount, notifyState: boolean): void {
+  private applyMerchantContext(account: SeededMerchantAccount): void {
     this.activeMerchant.set(account);
     this.tenantStore.setTenant(account.tenantId, account.merchantName);
+    this.outletStore.setOutletForMerchant(account.outletId, account.merchantName, account.locality, account.locality);
     localStorage.setItem('nk_active_tenant_id', account.tenantId);
 
     const user: AuthUser = {
@@ -196,26 +204,12 @@ export class MerchantAuthStore {
     };
 
     this.authState.setUser(user);
-
-    // Generate lightweight dev token if not present
-    if (!this.tokenStorage.getAccessToken()) {
-      const fakeToken = btoa(JSON.stringify({
-        sub: account.id,
-        phone: account.phoneNumber,
-        roles: account.roles,
-        tenantId: account.tenantId,
-        outletId: account.outletId,
-        merchantName: account.merchantName,
-        exp: Math.floor(Date.now() / 1000) + 86400
-      }));
-      this.tokenStorage.setAccessToken(`dev.${fakeToken}.sig`);
-    }
   }
 
   logout(): void {
     this.tokenStorage.clear();
     this.authState.logout();
     localStorage.removeItem('nk_active_tenant_id');
-    this.applyMerchantContext(this.seededMerchants[1], true);
+    this.switchMerchant(this.seededMerchants[1]);
   }
 }

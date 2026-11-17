@@ -1,28 +1,31 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { SubscriptionDetails, SaaSTier } from '../models/subscriptions-view.model';
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
 
-const INITIAL_SUBSCRIPTION: SubscriptionDetails = {
+const DEFAULT_SUBSCRIPTION: SubscriptionDetails = {
   currentTier: 'PRO',
   billingCycle: 'MONTHLY',
-  pricePaise: 99900, // ₹999 / mo
-  nextRenewalDate: '2026-12-11',
+  pricePaise: 99900,
+  nextRenewalDate: '2026-12-15',
   isInGracePeriod: false,
   gracePeriodDaysRemaining: 7,
   quotas: {
     outletsUsed: 1,
     outletsLimit: 1,
-    staffUsed: 4,
+    staffUsed: 2,
     staffLimit: 5,
-    productsUsed: 38,
-    productsLimit: 9999, // Unlimited on Pro
-    ordersThisMonth: 1480,
+    productsUsed: 12,
+    productsLimit: 9999,
+    ordersThisMonth: 124,
     ordersLimit: 9999
   }
 };
 
 @Injectable()
 export class SubscriptionsStore {
-  readonly subscription = signal<SubscriptionDetails>(INITIAL_SUBSCRIPTION);
+  private authStore = inject(MerchantAuthStore);
+
+  readonly subscription = signal<SubscriptionDetails>(DEFAULT_SUBSCRIPTION);
   readonly isUpgrading = signal<boolean>(false);
   readonly upgradeSuccess = signal<string | null>(null);
 
@@ -59,8 +62,8 @@ export class SubscriptionsStore {
       }));
 
       this.isUpgrading.set(false);
-      this.upgradeSuccess.set(`Plan updated to ${tier.replace('_', ' ')} successfully!`);
-      setTimeout(() => this.upgradeSuccess.set(null), 4000);
-    }, 600);
+      this.upgradeSuccess.set(`Successfully upgraded to ${tier} Plan!`);
+      setTimeout(() => this.upgradeSuccess.set(null), 3500);
+    }, 700);
   }
 }

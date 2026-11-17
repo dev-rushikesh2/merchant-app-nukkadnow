@@ -1,69 +1,67 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { QrStandeeViewModel, QrStandeeType } from '../models/qr-ordering-view.model';
 import { generateQrSvg } from '../utils/qr-svg-generator';
-
-const BASE_URL = 'https://nukkadnow.in/m/shree-ram-sweets-dharampeth';
-
-const INITIAL_STANDEES: QrStandeeViewModel[] = [
-  {
-    id: 'qr-counter-1',
-    label: 'Main Billing Counter Standee',
-    type: 'COUNTER',
-    sourceTag: 'counter_main',
-    targetUrl: `${BASE_URL}?source=counter_main`,
-    qrSvgDataUri: generateQrSvg(`${BASE_URL}?source=counter_main`),
-    scanCount: 342,
-    orderCount: 189,
-    isActive: true,
-    lastScannedAt: '10 mins ago'
-  },
-  {
-    id: 'qr-window-1',
-    label: 'Storefront Window Poster',
-    type: 'WINDOW',
-    sourceTag: 'window_poster',
-    targetUrl: `${BASE_URL}?source=window_poster`,
-    qrSvgDataUri: generateQrSvg(`${BASE_URL}?source=window_poster`),
-    scanCount: 128,
-    orderCount: 42,
-    isActive: true,
-    lastScannedAt: '45 mins ago'
-  },
-  {
-    id: 'qr-table-1',
-    label: 'Table #1 Dine-in Tent Card',
-    type: 'TABLE',
-    tableNumber: 1,
-    sourceTag: 'table_1',
-    targetUrl: `${BASE_URL}?source=table_1`,
-    qrSvgDataUri: generateQrSvg(`${BASE_URL}?source=table_1`),
-    scanCount: 88,
-    orderCount: 56,
-    isActive: true,
-    lastScannedAt: '12 mins ago'
-  },
-  {
-    id: 'qr-table-2',
-    label: 'Table #2 Dine-in Tent Card',
-    type: 'TABLE',
-    tableNumber: 2,
-    sourceTag: 'table_2',
-    targetUrl: `${BASE_URL}?source=table_2`,
-    qrSvgDataUri: generateQrSvg(`${BASE_URL}?source=table_2`),
-    scanCount: 94,
-    orderCount: 61,
-    isActive: true,
-    lastScannedAt: '5 mins ago'
-  }
-];
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
 
 @Injectable()
 export class QrOrderingStore {
-  readonly standees = signal<QrStandeeViewModel[]>(INITIAL_STANDEES);
-  readonly merchantName = signal<string>('Shree Ram Sweets & Farsan');
-  readonly locality = signal<string>('Dharampeth, Nagpur');
-  readonly merchantSlug = signal<string>('shree-ram-sweets-dharampeth');
+  private authStore = inject(MerchantAuthStore);
+
+  readonly standees = signal<QrStandeeViewModel[]>([]);
+  readonly merchantName = signal<string>('');
+  readonly locality = signal<string>('');
+  readonly merchantSlug = signal<string>('');
   readonly selectedForPrint = signal<QrStandeeViewModel | null>(null);
+
+  constructor() {
+    this.init();
+  }
+
+  private init(): void {
+    this.regenerateForTenant();
+    this.authStore.tenantSwitched$.subscribe(() => {
+      this.regenerateForTenant();
+    });
+  }
+
+  private regenerateForTenant(): void {
+    const active = this.authStore.activeMerchant();
+    const slug = active.merchantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const baseUrl = `https://nukkadnow.in/m/${slug}`;
+
+    this.merchantName.set(active.merchantName);
+    this.locality.set(`${active.locality}, ${active.city}`);
+    this.merchantSlug.set(slug);
+
+    const standees: QrStandeeViewModel[] = [
+      {
+        id: `qr-${active.tenantId}-counter`,
+        label: `${active.merchantName} Counter Standee`,
+        type: 'COUNTER',
+        sourceTag: 'counter_main',
+        targetUrl: `${baseUrl}?source=counter_main`,
+        qrSvgDataUri: generateQrSvg(`${baseUrl}?source=counter_main`),
+        scanCount: 142,
+        orderCount: 68,
+        isActive: true,
+        lastScannedAt: '12 mins ago'
+      },
+      {
+        id: `qr-${active.tenantId}-window`,
+        label: 'Storefront Window Poster',
+        type: 'WINDOW',
+        sourceTag: 'window_poster',
+        targetUrl: `${baseUrl}?source=window_poster`,
+        qrSvgDataUri: generateQrSvg(`${baseUrl}?source=window_poster`),
+        scanCount: 64,
+        orderCount: 22,
+        isActive: true,
+        lastScannedAt: '1 hour ago'
+      }
+    ];
+
+    this.standees.set(standees);
+  }
 
   readonly totalScans = computed(() => {
     return this.standees().reduce((sum, s) => sum + s.scanCount, 0);
@@ -82,8 +80,9 @@ export class QrOrderingStore {
   });
 
   addStandee(label: string, type: QrStandeeType, tableNum?: number): void {
+    const baseUrl = `https://nukkadnow.in/m/${this.merchantSlug()}`;
     const sourceTag = type === 'TABLE' ? `table_${tableNum}` : `${type.toLowerCase()}_${Date.now() % 1000}`;
-    const targetUrl = `${BASE_URL}?source=${sourceTag}`;
+    const targetUrl = `${baseUrl}?source=${sourceTag}`;
     const newStandee: QrStandeeViewModel = {
       id: `qr-${Date.now()}`,
       label,
@@ -100,10 +99,11 @@ export class QrOrderingStore {
   }
 
   addTableBatch(start: number, end: number): void {
+    const baseUrl = `https://nukkadnow.in/m/${this.merchantSlug()}`;
     const newItems: QrStandeeViewModel[] = [];
     for (let i = start; i <= end; i++) {
       const sourceTag = `table_${i}`;
-      const targetUrl = `${BASE_URL}?source=${sourceTag}`;
+      const targetUrl = `${baseUrl}?source=${sourceTag}`;
       newItems.push({
         id: `qr-table-${i}-${Date.now()}`,
         label: `Table #${i} Tent Card`,

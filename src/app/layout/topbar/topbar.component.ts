@@ -46,8 +46,8 @@ import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
 
         <!-- Desktop Tenant Branding -->
         <div class="desktop-tenant-branding">
-          <strong class="tenant-name">{{ tenantStore.tenantName() || 'Shree Fresh Mart' }}</strong>
-          <span class="locality-tag">{{ outletStore.activeOutlet().locality || 'Civil Lines' }}, Amravati</span>
+          <strong class="tenant-name">{{ tenantStore.tenantName() }}</strong>
+          <span class="locality-tag">{{ outletStore.activeOutlet().locality }}</span>
         </div>
       </div>
 
@@ -76,7 +76,7 @@ import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
       title="Store Operational Status"
       (close)="isStatusModalOpen.set(false)">
       <div class="status-dialog-body">
-        <p class="dialog-desc">Change the live order status for <strong>{{ outletStore.activeOutlet().name || 'Shree Fresh Mart' }}</strong>.</p>
+        <p class="dialog-desc">Change the live order status for <strong>{{ outletStore.activeOutlet().name }}</strong>.</p>
 
         <div class="status-options">
           <button

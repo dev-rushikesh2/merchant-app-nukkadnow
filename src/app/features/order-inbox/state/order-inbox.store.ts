@@ -1,14 +1,17 @@
 ﻿import { Injectable, signal, computed, inject } from '@angular/core';
-import { OrderInboxItem, INITIAL_INBOX_ORDERS, OrderLifecycleState } from '../models/order-inbox-view.model';
+import { OrderInboxItem, OrderLifecycleState } from '../models/order-inbox-view.model';
 import { AudioAlertService } from '../../../core/realtime/audio-alert.service';
+import { OrderInboxApi } from '../data-access/order-inbox.api';
 
 @Injectable({ providedIn: 'root' })
 export class OrderInboxStore {
   private audio = inject(AudioAlertService);
+  private api = inject(OrderInboxApi);
 
-  readonly orders = signal<OrderInboxItem[]>(INITIAL_INBOX_ORDERS);
+  readonly orders = signal<OrderInboxItem[]>([]);
   readonly activeTab = signal<'NEW' | 'PREPARING' | 'READY' | 'COMPLETED'>('NEW');
   readonly isSoundEnabled = signal<boolean>(true);
+  readonly loading = signal<boolean>(false);
 
   readonly newOrdersCount = computed(() => this.orders().filter((o) => o.status === 'PLACED').length);
   readonly preparingCount = computed(() => this.orders().filter((o) => o.status === 'PREPARING').length);
@@ -26,6 +29,42 @@ export class OrderInboxStore {
     });
   });
 
+  constructor() {
+    this.load();
+  }
+
+  load(): void {
+    this.loading.set(true);
+    this.api.fetchOrders().subscribe({
+      next: (res) => {
+        if (res?.data) {
+          const items: OrderInboxItem[] = res.data.map((o: any) => ({
+            id: o.id,
+            orderNumber: o.orderNumber,
+            customerName: o.customerName,
+            customerPhoneMasked: o.customerPhone ? o.customerPhone.slice(0, 7) + '*****' : '+91 98*** *****',
+            source: 'MARKETPLACE',
+            status: (o.status === 'New' ? 'PLACED' : o.status.toUpperCase()) as OrderLifecycleState,
+            fulfillmentType: o.fulfilmentType === 'Home Delivery' ? 'MERCHANT_DELIVERY' : 'PICKUP',
+            pickupSlotTime: o.time,
+            itemsSummary: (o.items || []).map((i: any) => `${i.quantity}x ${i.name}`).join(', ') || `${o.itemsCount} items`,
+            items: (o.items || []).map((i: any) => ({
+              title: i.name,
+              quantity: i.quantity,
+              pricePaise: (i.price || 0) * 100,
+              notes: i.meta
+            })),
+            totalPaise: (o.amount || 0) * 100,
+            receivedAgo: o.time
+          }));
+          this.orders.set(items);
+        }
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false)
+    });
+  }
+
   setTab(tab: 'NEW' | 'PREPARING' | 'READY' | 'COMPLETED') {
     this.activeTab.set(tab);
   }
@@ -35,6 +74,7 @@ export class OrderInboxStore {
   }
 
   acceptOrder(orderId: string, prepMinutes: number) {
+    this.api.updateOrderStatus(orderId, 'Preparing', prepMinutes).subscribe();
     this.orders.update((list) =>
       list.map((o) =>
         o.id === orderId
@@ -50,6 +90,7 @@ export class OrderInboxStore {
   }
 
   rejectOrder(orderId: string, reason: string) {
+    this.api.updateOrderStatus(orderId, 'Cancelled').subscribe();
     this.orders.update((list) =>
       list.map((o) =>
         o.id === orderId ? { ...o, status: 'REJECTED' as OrderLifecycleState } : o
@@ -58,6 +99,7 @@ export class OrderInboxStore {
   }
 
   markReady(orderId: string) {
+    this.api.updateOrderStatus(orderId, 'Ready').subscribe();
     this.orders.update((list) =>
       list.map((o) =>
         o.id === orderId
@@ -72,6 +114,7 @@ export class OrderInboxStore {
   }
 
   completeOrder(orderId: string) {
+    this.api.updateOrderStatus(orderId, 'Completed').subscribe();
     this.orders.update((list) =>
       list.map((o) =>
         o.id === orderId
@@ -82,30 +125,5 @@ export class OrderInboxStore {
           : o
       )
     );
-  }
-
-  simulateNewOrder() {
-    const newId = 'ord-' + Date.now();
-    const newOrder: OrderInboxItem = {
-      id: newId,
-      orderNumber: '#NK-' + Math.floor(100 + Math.random() * 900),
-      customerName: 'Rahul Deshmukh',
-      customerPhoneMasked: '+91 99701 *****',
-      source: 'MARKETPLACE',
-      status: 'PLACED',
-      fulfillmentType: 'PICKUP',
-      pickupSlotTime: 'Today, 06:15 PM',
-      itemsSummary: '2x Authentic Tarri Poha Plate',
-      items: [{ title: 'Authentic Tarri Poha Plate', quantity: 2, pricePaise: 8000 }],
-      totalPaise: 8000,
-      receivedAgo: 'Just now'
-    };
-
-    this.orders.update((list) => [newOrder, ...list]);
-    this.activeTab.set('NEW');
-
-    if (this.isSoundEnabled()) {
-      this.audio.playNewOrderChime();
-    }
   }
 }

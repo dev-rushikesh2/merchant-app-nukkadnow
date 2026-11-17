@@ -1,6 +1,8 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { AnalyticsSummary, HourlyRushPoint, TopSellingProduct, AnalyticsTimeRange } from '../models/analytics-view.model';
 import { exportToCsv } from '../utils/csv-exporter';
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
+import { OrderInboxApi } from '../../order-inbox/data-access/order-inbox.api';
 
 const SUMMARIES: Record<AnalyticsTimeRange, AnalyticsSummary> = {
   TODAY: {
@@ -8,9 +10,9 @@ const SUMMARIES: Record<AnalyticsTimeRange, AnalyticsSummary> = {
     totalOrders: 48,
     completedOrders: 46,
     cancelledOrRejected: 2,
-    grossOrderValuePaise: 1485000, // ₹14,850
-    netReconciledPayoutPaise: 1455300, // ₹14,553
-    platformFeePaise: 29700, // 2% platform fee
+    grossOrderValuePaise: 1485000,
+    netReconciledPayoutPaise: 1455300,
+    platformFeePaise: 29700,
     averagePrepTimeMinutes: 17,
     onTimePickupRate: 97.2,
     totalCustomers: 41,
@@ -79,15 +81,16 @@ const HOURLY_RUSH: HourlyRushPoint[] = [
 ];
 
 const TOP_PRODUCTS: TopSellingProduct[] = [
-  { id: 'p1', name: 'Nagpur Special Tarri Poha', category: 'Breakfast', unitsSold: 142, revenuePaise: 568000, stockoutDurationMinutes: 0 },
-  { id: 'p2', name: 'Fresh Samosa (Plate of 2)', category: 'Snacks', unitsSold: 184, revenuePaise: 552000, stockoutDurationMinutes: 15 },
-  { id: 'p3', name: 'Desi Ghee Besan Ladoo (1kg)', category: 'Mithai', unitsSold: 68, revenuePaise: 3060000, stockoutDurationMinutes: 0 },
-  { id: 'p4', name: 'Masala Chai Flask (500ml)', category: 'Beverages', unitsSold: 92, revenuePaise: 736000, stockoutDurationMinutes: 0 },
-  { id: 'p5', name: 'Kaju Katli (250g Box)', category: 'Mithai', unitsSold: 45, revenuePaise: 1125000, stockoutDurationMinutes: 40 }
+  { id: 'p1', name: 'Farm Fresh Produce Bundle', category: 'Vegetables', unitsSold: 142, revenuePaise: 568000, stockoutDurationMinutes: 0 },
+  { id: 'p2', name: 'Daily Essentials & Groceries', category: 'Grocery', unitsSold: 184, revenuePaise: 552000, stockoutDurationMinutes: 15 },
+  { id: 'p3', name: 'Nagpur Sweets & Bakery', category: 'Sweets', unitsSold: 68, revenuePaise: 3060000, stockoutDurationMinutes: 0 }
 ];
 
 @Injectable()
 export class AnalyticsStore {
+  private authStore = inject(MerchantAuthStore);
+  private orderApi = inject(OrderInboxApi);
+
   readonly selectedRange = signal<AnalyticsTimeRange>('TODAY');
   readonly summary = computed(() => SUMMARIES[this.selectedRange()]);
   readonly hourlyRush = signal<HourlyRushPoint[]>(HOURLY_RUSH);
@@ -100,19 +103,36 @@ export class AnalyticsStore {
 
   exportReport(): void {
     this.isExporting.set(true);
+    const active = this.authStore.activeMerchant();
 
-    const headers = ['Order ID', 'Date & Time', 'Customer', 'Source', 'Items', 'Gross Amount (INR)', 'Platform Fee (INR)', 'Net Payout (INR)', 'Status'];
-    const mockRows = [
-      ['#NK-1001', '2026-11-11 09:12', 'Pooja Deshmukh', 'Marketplace PWA', 'Tarri Poha x2', '80.00', '1.60', '78.40', 'COMPLETED'],
-      ['#NK-1002', '2026-11-11 09:25', 'Anand Kulkarni', 'Walk-in Counter', 'Samosa x2, Chai x1', '110.00', '0.00', '110.00', 'COMPLETED'],
-      ['#NK-1003', '2026-11-11 10:04', 'Sunil Joshi', 'Store Standee QR', 'Besan Ladoo 1kg x1', '450.00', '9.00', '441.00', 'COMPLETED'],
-      ['#NK-1004', '2026-11-11 11:30', 'Priya Rao', 'Marketplace PWA', 'Kaju Katli 250g x2', '500.00', '10.00', '490.00', 'COMPLETED'],
-      ['#NK-1005', '2026-11-11 12:15', 'Nitin Gadgil', 'Walk-in Counter', 'Tarri Poha x4', '160.00', '0.00', '160.00', 'COMPLETED']
-    ];
+    this.orderApi.fetchOrders().subscribe({
+      next: (res) => {
+        const headers = ['Order ID', 'Date & Time', 'Customer', 'Source', 'Items', 'Gross Amount (INR)', 'Platform Fee (INR)', 'Net Payout (INR)', 'Status'];
+        const orders = res?.data || [];
+        const rows = orders.map((o: any) => {
+          const gross = o.amount || 0;
+          const fee = (gross * 0.02).toFixed(2);
+          const net = (gross * 0.98).toFixed(2);
+          return [
+            o.orderNumber || o.id,
+            o.time || 'Today',
+            o.customerName || 'Customer',
+            'Marketplace PWA',
+            (o.items || []).map((i: any) => `${i.quantity}x ${i.name}`).join('; ') || `${o.itemsCount || 1} items`,
+            gross.toFixed(2),
+            fee,
+            net,
+            o.status || 'COMPLETED'
+          ];
+        });
 
-    setTimeout(() => {
-      exportToCsv(`nukkadnow_reconciliation_report_${this.selectedRange().toLowerCase()}_20261111.csv`, headers, mockRows);
-      this.isExporting.set(false);
-    }, 500);
+        const exportDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        exportToCsv(`${active.tenantId}_reconciliation_report_${this.selectedRange().toLowerCase()}_${exportDate}.csv`, headers, rows);
+        this.isExporting.set(false);
+      },
+      error: () => {
+        this.isExporting.set(false);
+      }
+    });
   }
 }

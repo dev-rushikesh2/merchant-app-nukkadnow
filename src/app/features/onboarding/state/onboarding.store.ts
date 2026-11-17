@@ -1,5 +1,5 @@
 ﻿import { Injectable, signal, computed } from '@angular/core';
-import { OnboardingDraft, INITIAL_DRAFT, SellerMode } from '../models/onboarding-view.model';
+import { OnboardingDraft, EMPTY_REGISTRATION_DRAFT, SellerMode } from '../models/onboarding-view.model';
 
 @Injectable({ providedIn: 'root' })
 export class OnboardingStore {
@@ -55,9 +55,9 @@ export class OnboardingStore {
   private loadFromStorage(): OnboardingDraft {
     try {
       const saved = localStorage.getItem(this.STORAGE_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_DRAFT;
+      return saved ? JSON.parse(saved) : EMPTY_REGISTRATION_DRAFT;
     } catch {
-      return INITIAL_DRAFT;
+      return EMPTY_REGISTRATION_DRAFT;
     }
   }
 
@@ -65,7 +65,7 @@ export class OnboardingStore {
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(draft));
     } catch {
-      // Storage unavailable fallback
+      // Storage unavailable
     }
   }
 }

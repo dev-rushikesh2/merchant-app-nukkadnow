@@ -35,37 +35,45 @@ const DEFAULT_SCHEDULE: OutletScheduleDay[] = [
 export class OutletSwitcherStore {
   readonly outlets = signal<OutletRecord[]>([
     {
-      id: 'outlet-dharampeth-1',
-      name: 'Dharampeth Main Branch',
-      locality: 'Dharampeth',
-      address: 'Shop 4, West High Court Road',
-      pincode: '440010',
+      id: 'outlet-kirana-002',
+      name: 'Sharma Kirana - Main Store',
+      locality: 'Civil Lines',
+      address: 'Shop No. 12, Main Market Road',
+      pincode: '444001',
       status: 'OPEN',
-      activeOrdersCount: 5,
-      weeklySchedule: DEFAULT_SCHEDULE
-    },
-    {
-      id: 'outlet-sadar-1',
-      name: 'Sadar Bazar Outlet',
-      locality: 'Sadar',
-      address: 'Near Residency Road, Sadar',
-      pincode: '440001',
-      status: 'OPEN',
-      activeOrdersCount: 2,
+      activeOrdersCount: 4,
       weeklySchedule: DEFAULT_SCHEDULE
     }
   ]);
 
-  readonly activeOutletId = signal<string>('outlet-dharampeth-1');
+  readonly activeOutletId = signal<string>('outlet-kirana-002');
 
   readonly activeOutlet = computed(() => {
     return this.outlets().find((o) => o.id === this.activeOutletId()) || this.outlets()[0];
   });
 
-  readonly currentStatus = computed(() => this.activeOutlet().status);
+  readonly currentStatus = computed(() => this.activeOutlet() ? this.activeOutlet().status : 'OPEN');
 
   selectOutlet(id: string) {
     this.activeOutletId.set(id);
+  }
+
+  setOutletForMerchant(outletId: string, name: string, locality: string, address: string) {
+    const existing = this.outlets().find(o => o.id === outletId);
+    if (!existing) {
+      const record: OutletRecord = {
+        id: outletId,
+        name,
+        locality,
+        address,
+        pincode: '440010',
+        status: 'OPEN',
+        activeOrdersCount: 0,
+        weeklySchedule: DEFAULT_SCHEDULE
+      };
+      this.outlets.set([record]);
+    }
+    this.activeOutletId.set(outletId);
   }
 
   toggleStatus() {

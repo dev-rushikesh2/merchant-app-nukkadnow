@@ -1,11 +1,16 @@
-﻿import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+﻿import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { OrderInboxApi, OrderApiResponse } from '../data-access/order-inbox.api';
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
+import { Subscription } from 'rxjs';
 
 export interface MerchantOrder {
   id: string;
+  orderNumber: string;
   time: string;
+  date?: string;
   amount: number;
   itemsCount: number;
   customerName: string;
@@ -14,6 +19,7 @@ export interface MerchantOrder {
   distance?: string;
   status: 'New' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled';
   stepIndex?: number; // 0: Accepted, 1: Preparing, 2: Ready, 3: Out for Delivery
+  items?: any[];
 }
 
 export interface PastOrder {
@@ -33,8 +39,14 @@ export interface PastOrder {
   styleUrls: ['./order-inbox-list.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class OrderInboxPageComponent {
+export class OrderInboxPageComponent implements OnInit, OnDestroy {
   private router = inject(Router);
+  private orderApi = inject(OrderInboxApi);
+  private authStore = inject(MerchantAuthStore);
+  private sub = new Subscription();
+
+  // Loading state
+  readonly isLoading = signal<boolean>(true);
 
   // Sub Tab: 'inbox' | 'history'
   readonly subTab = signal<'inbox' | 'history'>('inbox');
@@ -48,68 +60,66 @@ export class OrderInboxPageComponent {
   // Search query
   readonly searchQuery = signal<string>('');
 
-  // Live Orders Signal
-  readonly orders = signal<MerchantOrder[]>([
-    {
-      id: '#ORD78291',
-      time: 'Today, 10:24 AM',
-      amount: 540,
-      itemsCount: 5,
-      customerName: 'Rahul Deshmukh',
-      customerPhone: '+91 98765 43210',
-      fulfilmentType: 'Home Delivery',
-      distance: '3.2 km',
-      status: 'New',
-      stepIndex: 0
-    },
-    {
-      id: '#ORD78290',
-      time: 'Today, 10:02 AM',
-      amount: 1240,
-      itemsCount: 8,
-      customerName: 'Priya Kulkarni',
-      customerPhone: '+91 98234 56789',
-      fulfilmentType: 'Home Delivery',
-      distance: '5.6 km',
-      status: 'Preparing',
-      stepIndex: 1
-    },
-    {
-      id: '#ORD78289',
-      time: 'Today, 09:48 AM',
-      amount: 325,
-      itemsCount: 3,
-      customerName: 'Amit Patil',
-      customerPhone: '+91 97654 32109',
-      fulfilmentType: 'Self Pickup',
-      status: 'Ready',
-      stepIndex: 2
-    },
-    {
-      id: '#ORD78288',
-      time: 'Today, 09:20 AM',
-      amount: 760,
-      itemsCount: 5,
-      customerName: 'Kavita Joshi',
-      customerPhone: '+91 90123 45678',
-      fulfilmentType: 'Home Delivery',
-      distance: '2.1 km',
-      status: 'Completed',
-      stepIndex: 3
-    }
-  ]);
+  // Live Orders Signal (Strictly from real API)
+  readonly orders = signal<MerchantOrder[]>([]);
 
-  // Order History Signal
-  readonly pastOrders = signal<PastOrder[]>([
-    { id: '#ORD78288', date: '30 Nov', time: '07:14 PM', amount: 760, itemsCount: 5, status: 'Completed' },
-    { id: '#ORD78287', date: '30 Nov', time: '05:02 PM', amount: 1240, itemsCount: 8, status: 'Completed' },
-    { id: '#ORD78286', date: '30 Nov', time: '03:10 PM', amount: 325, itemsCount: 3, status: 'Cancelled' },
-    { id: '#ORD78285', date: '29 Nov', time: '08:36 PM', amount: 540, itemsCount: 5, status: 'Completed' },
-    { id: '#ORD78284', date: '29 Nov', time: '06:21 PM', amount: 1080, itemsCount: 7, status: 'Completed' }
-  ]);
+  // Order History Signal (Strictly from real API)
+  readonly pastOrders = signal<PastOrder[]>([]);
 
   // History date range
   readonly dateRange = signal<string>('01 Nov 2026 – 30 Nov 2026');
+
+  // Toast
+  readonly toastMessage = signal<string | null>(null);
+
+  ngOnInit(): void {
+    this.loadOrders();
+
+    this.sub.add(
+      this.authStore.tenantSwitched$.subscribe(() => {
+        this.loadOrders();
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.sub.unsubscribe();
+  }
+
+  loadOrders(): void {
+    this.isLoading.set(true);
+    this.orderApi.fetchOrders().subscribe({
+      next: (res: OrderApiResponse) => {
+        if (res && res.data) {
+          const live: MerchantOrder[] = res.liveOrders || res.data.filter(
+            (o: any) => o.status !== 'Completed' && o.status !== 'Cancelled'
+          );
+          const history: PastOrder[] = (res.pastOrders || res.data.filter(
+            (o: any) => o.status === 'Completed' || o.status === 'Cancelled'
+          )).map((o: any) => ({
+            id: o.orderNumber || o.id,
+            date: o.date || 'Today',
+            time: o.time || '10:00 AM',
+            amount: o.amount,
+            itemsCount: o.itemsCount || (o.items ? o.items.length : 1),
+            status: o.status === 'Cancelled' ? 'Cancelled' : 'Completed'
+          }));
+
+          this.orders.set(live.map((o: any) => ({
+            ...o,
+            id: o.orderNumber || o.id
+          })));
+          this.pastOrders.set(history);
+        }
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.orders.set([]);
+        this.pastOrders.set([]);
+        this.isLoading.set(false);
+      }
+    });
+  }
 
   // Filtered Live Orders computed
   readonly filteredOrders = computed(() => {
@@ -139,9 +149,6 @@ export class OrderInboxPageComponent {
     return list;
   });
 
-  // Toast
-  readonly toastMessage = signal<string | null>(null);
-
   setSubTab(tab: 'inbox' | 'history') {
     this.subTab.set(tab);
   }
@@ -156,26 +163,45 @@ export class OrderInboxPageComponent {
 
   acceptOrder(orderId: string, event: Event) {
     event.stopPropagation();
-    this.orders.update(list =>
-      list.map(o => (o.id === orderId ? { ...o, status: 'Preparing', stepIndex: 1 } : o))
-    );
-    this.showToast(`Order ${orderId} accepted! Preparing timer started.`);
+    this.orderApi.updateOrderStatus(orderId, 'Preparing', 15).subscribe({
+      next: () => {
+        this.orders.update(list =>
+          list.map(o => (o.id === orderId ? { ...o, status: 'Preparing', stepIndex: 1 } : o))
+        );
+        this.showToast(`Order ${orderId} accepted! Preparing timer started.`);
+      },
+      error: () => {
+        this.showToast(`Error accepting order ${orderId}`);
+      }
+    });
   }
 
   rejectOrder(orderId: string, event: Event) {
     event.stopPropagation();
-    this.orders.update(list =>
-      list.map(o => (o.id === orderId ? { ...o, status: 'Cancelled' } : o))
-    );
-    this.showToast(`Order ${orderId} rejected.`);
+    this.orderApi.updateOrderStatus(orderId, 'Cancelled').subscribe({
+      next: () => {
+        this.orders.update(list =>
+          list.map(o => (o.id === orderId ? { ...o, status: 'Cancelled' } : o))
+        );
+        this.showToast(`Order ${orderId} rejected.`);
+      },
+      error: () => {
+        this.showToast(`Error rejecting order ${orderId}`);
+      }
+    });
   }
 
   markCompleted(orderId: string, event: Event) {
     event.stopPropagation();
-    this.orders.update(list =>
-      list.map(o => (o.id === orderId ? { ...o, status: 'Completed', stepIndex: 3 } : o))
-    );
-    this.showToast(`Order ${orderId} marked as completed!`);
+    this.orderApi.updateOrderStatus(orderId, 'Completed').subscribe({
+      next: () => {
+        this.orders.update(list => list.filter(o => o.id !== orderId));
+        this.showToast(`Order ${orderId} marked as completed!`);
+      },
+      error: () => {
+        this.showToast(`Error updating order ${orderId}`);
+      }
+    });
   }
 
   openOrderDetails(orderId: string) {

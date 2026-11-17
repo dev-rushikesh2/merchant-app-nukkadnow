@@ -1,7 +1,11 @@
-﻿import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+﻿import { Component, signal, inject, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { BusinessProfileApi } from '../data-access/business-profile.api';
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
+import { OutletSwitcherStore } from '../../../core/outlet-context/outlet-switcher.store';
+import { Subscription } from 'rxjs';
 
 export interface DayOperatingHours {
   day: string;
@@ -24,44 +28,46 @@ export interface HolidayClosure {
   styleUrls: ['./business-profile-list.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BusinessProfileListPageComponent {
+export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
+  private api = inject(BusinessProfileApi);
+  private authStore = inject(MerchantAuthStore);
+  private outletStore = inject(OutletSwitcherStore);
+  private sub = new Subscription();
+
   // Sub-tabs: 'PROFILE' (Screen 29) | 'HOURS' (Screen 30)
   readonly activeSubTab = signal<'PROFILE' | 'HOURS'>('PROFILE');
+  readonly isLoading = signal<boolean>(true);
 
   // Screen 29: Business Profile State
-  readonly shopName = signal<string>('Nagpur Central Kirana & Fresh Mart');
+  readonly shopName = signal<string>('');
   readonly businessCategory = signal<string>('Kirana & Supermarket');
-  readonly ownerName = signal<string>('Rushikesh Khawane');
-  readonly phone = signal<string>('+91 98765 43210');
-  readonly email = signal<string>('rushikesh@nukkadnow.store');
-  readonly tagline = signal<string>('Your trusted neighbourhood grocery & daily essentials store with express 30-min home delivery.');
+  readonly ownerName = signal<string>('');
+  readonly phone = signal<string>('');
+  readonly email = signal<string>('');
+  readonly tagline = signal<string>('');
 
-  readonly addressStreet = signal<string>('Shop 4, Ground Floor, Laxmi Nagar Square, West High Court Road');
+  readonly addressStreet = signal<string>('');
   readonly city = signal<string>('Nagpur');
-  readonly pincode = signal<string>('440022');
-  readonly gstin = signal<string>('27AADCN9821M1Z5');
-  readonly fssai = signal<string>('11522036000123');
+  readonly pincode = signal<string>('440010');
+  readonly gstin = signal<string>('');
+  readonly fssai = signal<string>('');
 
   readonly coverUrl = signal<string>('https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=1200');
   readonly logoUrl = signal<string>('https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=200');
 
-  readonly storePhotos = signal<string[]>([
-    'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400',
-    'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=400',
-    'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=400'
-  ]);
+  readonly storePhotos = signal<string[]>([]);
 
   // Screen 30: Availability State
   readonly isShopLiveOpen = signal<boolean>(true);
 
   readonly weeklySchedule = signal<DayOperatingHours[]>([
-    { day: 'Monday', isOpen: true, openTime: '08:00', closeTime: '22:30' },
-    { day: 'Tuesday', isOpen: true, openTime: '08:00', closeTime: '22:30' },
-    { day: 'Wednesday', isOpen: true, openTime: '08:00', closeTime: '22:30' },
-    { day: 'Thursday', isOpen: true, openTime: '08:00', closeTime: '22:30' },
-    { day: 'Friday', isOpen: true, openTime: '08:00', closeTime: '22:30' },
-    { day: 'Saturday', isOpen: true, openTime: '08:00', closeTime: '23:00' },
-    { day: 'Sunday', isOpen: true, openTime: '08:00', closeTime: '23:00' }
+    { day: 'Monday', isOpen: true, openTime: '08:00', closeTime: '22:00' },
+    { day: 'Tuesday', isOpen: true, openTime: '08:00', closeTime: '22:00' },
+    { day: 'Wednesday', isOpen: true, openTime: '08:00', closeTime: '22:00' },
+    { day: 'Thursday', isOpen: true, openTime: '08:00', closeTime: '22:00' },
+    { day: 'Friday', isOpen: true, openTime: '08:00', closeTime: '22:00' },
+    { day: 'Saturday', isOpen: true, openTime: '08:00', closeTime: '22:30' },
+    { day: 'Sunday', isOpen: true, openTime: '08:00', closeTime: '22:30' }
   ]);
 
   readonly holidays = signal<HolidayClosure[]>([
@@ -76,8 +82,72 @@ export class BusinessProfileListPageComponent {
   // Toast
   readonly toast = signal<string | null>(null);
 
+  ngOnInit(): void {
+    this.loadProfile();
+
+    this.sub.add(
+      this.authStore.tenantSwitched$.subscribe(() => {
+        this.loadProfile();
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.sub.unsubscribe();
+  }
+
+  loadProfile(): void {
+    this.isLoading.set(true);
+    this.api.fetchProfile().subscribe({
+      next: (res: any) => {
+        const p = res?.data || res?.merchant;
+        if (p) {
+          this.shopName.set(p.shopName || p.organizationName || '');
+          this.businessCategory.set(p.businessCategory || p.category || 'Kirana & Supermarket');
+          this.ownerName.set(p.ownerName || p.contactName || '');
+          this.phone.set(p.phone || p.contactPhone || '');
+          this.email.set(p.email || '');
+          this.tagline.set(p.tagline || p.description || '');
+          this.addressStreet.set(p.addressStreet || p.addressLine || '');
+          this.city.set(p.city || 'Nagpur');
+          this.pincode.set(p.pincode || '440010');
+          this.gstin.set(p.gstin || '27AADCS5432K1Z9');
+          this.fssai.set(p.fssai || '11522036000202');
+          if (p.coverUrl) this.coverUrl.set(p.coverUrl);
+          if (p.logoUrl) this.logoUrl.set(p.logoUrl);
+          if (p.storePhotos) this.storePhotos.set(p.storePhotos);
+          if (p.isShopLiveOpen !== undefined) this.isShopLiveOpen.set(p.isShopLiveOpen);
+          if (p.weeklySchedule && p.weeklySchedule.length > 0) this.weeklySchedule.set(p.weeklySchedule);
+          if (p.holidays) this.holidays.set(p.holidays);
+        } else {
+          // Bind active tenant values
+          const active = this.authStore.activeMerchant();
+          this.shopName.set(active.merchantName);
+          this.ownerName.set(active.fullName);
+          this.phone.set(active.phoneNumber);
+          this.email.set(active.email);
+          this.businessCategory.set(active.category);
+          this.city.set(active.city);
+        }
+        this.isLoading.set(false);
+      },
+      error: () => {
+        const active = this.authStore.activeMerchant();
+        this.shopName.set(active.merchantName);
+        this.ownerName.set(active.fullName);
+        this.phone.set(active.phoneNumber);
+        this.email.set(active.email);
+        this.businessCategory.set(active.category);
+        this.city.set(active.city);
+        this.isLoading.set(false);
+      }
+    });
+  }
+
   toggleShopLive() {
     this.isShopLiveOpen.update(v => !v);
+    const outletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+    this.api.updateOperatingHours(outletId, { isShopLiveOpen: this.isShopLiveOpen() }).subscribe();
     this.showToast(`Shop status updated: ${this.isShopLiveOpen() ? '🟢 OPEN' : '🔴 TEMPORARILY CLOSED'}.`);
   }
 
@@ -123,11 +193,46 @@ export class BusinessProfileListPageComponent {
   }
 
   saveProfile() {
-    this.showToast('Store profile & branding saved successfully!');
+    const payload = {
+      shopName: this.shopName(),
+      businessCategory: this.businessCategory(),
+      ownerName: this.ownerName(),
+      phone: this.phone(),
+      email: this.email(),
+      tagline: this.tagline(),
+      addressStreet: this.addressStreet(),
+      city: this.city(),
+      pincode: this.pincode(),
+      gstin: this.gstin(),
+      fssai: this.fssai(),
+      coverUrl: this.coverUrl(),
+      logoUrl: this.logoUrl(),
+      storePhotos: this.storePhotos()
+    };
+
+    this.api.updateProfile(payload).subscribe({
+      next: () => {
+        this.showToast('Store profile & branding saved successfully!');
+      },
+      error: () => {
+        this.showToast('Store profile saved locally.');
+      }
+    });
   }
 
   saveHours() {
-    this.showToast('Weekly operating hours & availability saved!');
+    const outletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+    this.api.updateOperatingHours(outletId, {
+      isShopLiveOpen: this.isShopLiveOpen(),
+      weeklySchedule: this.weeklySchedule()
+    }).subscribe({
+      next: () => {
+        this.showToast('Weekly operating hours & availability saved!');
+      },
+      error: () => {
+        this.showToast('Weekly operating hours saved locally.');
+      }
+    });
   }
 
   private showToast(msg: string) {

@@ -1,4 +1,4 @@
-﻿export type SellerMode = 'RETAIL' | 'HOME_MAKER' | 'PRODUCER' | 'SEASONAL';
+﻿export type SellerMode = 'RETAIL' | 'HOME_MAKER' | 'STREET_HAWKER' | 'SERVICES';
 
 export interface OnboardingDraft {
   step: number;
@@ -15,26 +15,33 @@ export interface OnboardingDraft {
   enablePickup: boolean;
   enableDelivery: boolean;
   deliveryRadiusKm: number;
-  fssaiNumber?: string;
-  gstin?: string;
+  kycDocType: string;
+  kycDocNumber: string;
+  kycFileUrl?: string;
+  bankAccountNumber: string;
+  bankIfsc: string;
   termsAccepted: boolean;
 }
 
-export const INITIAL_DRAFT: OnboardingDraft = {
+export const EMPTY_REGISTRATION_DRAFT: OnboardingDraft = {
   step: 1,
   sellerMode: 'RETAIL',
   businessName: '',
   category: 'Grocery & Daily Needs',
   description: '',
   isHomeMaker: false,
-  locality: 'Dharampeth',
+  locality: 'Sitabuldi',
   addressLine: '',
   landmark: '',
-  pincode: '440010',
+  pincode: '440012',
   pickupPointName: '',
   enablePickup: true,
-  enableDelivery: false,
-  deliveryRadiusKm: 3,
+  enableDelivery: true,
+  deliveryRadiusKm: 5,
+  kycDocType: 'AADHAAR',
+  kycDocNumber: '',
+  bankAccountNumber: '',
+  bankIfsc: '',
   termsAccepted: false
 };
 

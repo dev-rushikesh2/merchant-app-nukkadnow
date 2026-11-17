@@ -1,12 +1,13 @@
 ﻿import { Injectable, inject } from '@angular/core';
 import { HttpClientAdapter } from '@nukkadnow/api-client';
-import { Observable, of } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 
 export interface OtpRequestResponse {
   success: boolean;
-  challengeId: string;
-  cooldownSeconds: number;
+  challengeId?: string;
+  cooldownSeconds?: number;
+  devOtp?: string;
+  expiresInSeconds?: number;
 }
 
 export interface OtpVerifyResponse {
@@ -15,36 +16,27 @@ export interface OtpVerifyResponse {
   user: {
     id: string;
     phoneNumber: string;
-    roles: ('merchant_owner' | 'outlet_manager' | 'cashier')[];
-    activeTenantId: string;
-    activeOutletId: string;
+    roles: string[];
+    tenantId: string;
+    outletId: string;
+    merchantName?: string;
   };
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthApi {
   private http = inject(HttpClientAdapter);
+  private readonly baseUrl = '/api/v1/merchant/auth';
 
   requestOtp(phoneNumber: string): Observable<OtpRequestResponse> {
-    // In local dev/mock or backend API:
-    return of({
-      success: true,
-      challengeId: 'ch-' + Date.now(),
-      cooldownSeconds: 60
-    }).pipe(delay(600));
+    return this.http.post<OtpRequestResponse>(`${this.baseUrl}/otp/request`, { phoneNumber });
   }
 
   verifyOtp(challengeId: string, phoneNumber: string, otp: string): Observable<OtpVerifyResponse> {
-    return of({
-      accessToken: 'nk_mock_jwt_access_' + Date.now(),
-      refreshToken: 'nk_mock_jwt_refresh_' + Date.now(),
-      user: {
-        id: 'usr-mer-01',
-        phoneNumber,
-        roles: ['merchant_owner' as const],
-        activeTenantId: 'tenant-nagpur-1',
-        activeOutletId: 'outlet-dharampeth-1'
-      }
-    }).pipe(delay(600));
+    return this.http.post<OtpVerifyResponse>(`${this.baseUrl}/otp/verify`, { challengeId, phoneNumber, otp });
+  }
+
+  login(phoneNumber: string): Observable<OtpVerifyResponse> {
+    return this.http.post<OtpVerifyResponse>(`${this.baseUrl}/login`, { phoneNumber });
   }
 }
