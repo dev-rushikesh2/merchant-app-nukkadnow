@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BusinessProfileApi } from './business-profile.api';
 import { BusinessProfileMapper } from './business-profile.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class BusinessProfileRepository {
   private mapper = inject(BusinessProfileMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

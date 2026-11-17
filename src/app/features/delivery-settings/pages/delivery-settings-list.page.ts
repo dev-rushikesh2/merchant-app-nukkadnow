@@ -35,15 +35,37 @@ export class DeliverySettingsListPageComponent {
   readonly pincodes = signal<string[]>(['440010', '440012', '440015', '440022']);
   readonly newPincode = signal<string>('');
 
-  // Store Riders Roster
-  readonly riders = signal<StoreRider[]>([
-    { id: 'r1', name: 'Ramesh Sonwane', phone: '+91 98765 11223', vehicle: 'Honda Activa (MH-31-AB-1234)', status: 'On Delivery', activeOrdersCount: 2 },
-    { id: 'r2', name: 'Suresh Patil', phone: '+91 98234 44556', vehicle: 'TVS Jupiter (MH-31-CD-5678)', status: 'Available', activeOrdersCount: 0 },
-    { id: 'r3', name: 'Ganesh Shinde', phone: '+91 97654 77889', vehicle: 'Hero Splendor (MH-31-EF-9012)', status: 'Off Shift', activeOrdersCount: 0 }
-  ]);
+  // Store Riders Roster (zero hardcoded dummy riders)
+  readonly riders = signal<StoreRider[]>([]);
+  readonly showAddRider = signal<boolean>(false);
+  readonly newRiderName = signal<string>('');
+  readonly newRiderPhone = signal<string>('');
+  readonly newRiderVehicle = signal<string>('');
 
   // Toast
   readonly toast = signal<string | null>(null);
+
+  addRider() {
+    const name = this.newRiderName().trim();
+    const phone = this.newRiderPhone().trim();
+    if (!name || !phone) return;
+
+    const rider: StoreRider = {
+      id: `rider-${Date.now()}`,
+      name,
+      phone,
+      vehicle: this.newRiderVehicle().trim() || 'Two-Wheeler Delivery',
+      status: 'Available',
+      activeOrdersCount: 0
+    };
+
+    this.riders.update(list => [...list, rider]);
+    this.newRiderName.set('');
+    this.newRiderPhone.set('');
+    this.newRiderVehicle.set('');
+    this.showAddRider.set(false);
+    this.showToast(`Delivery partner "${name}" registered successfully!`);
+  }
 
   toggleDelivery() {
     this.isDeliveryEnabled.update(v => !v);

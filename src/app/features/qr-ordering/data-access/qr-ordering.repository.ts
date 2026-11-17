@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { QrOrderingApi } from './qr-ordering.api';
 import { QrOrderingMapper } from './qr-ordering.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class QrOrderingRepository {
   private mapper = inject(QrOrderingMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

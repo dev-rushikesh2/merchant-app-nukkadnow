@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { OutletsApi } from './outlets.api';
 import { OutletsMapper } from './outlets.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class OutletsRepository {
   private mapper = inject(OutletsMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

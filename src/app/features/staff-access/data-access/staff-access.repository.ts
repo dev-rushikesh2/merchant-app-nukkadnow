@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { StaffAccessApi } from './staff-access.api';
 import { StaffAccessMapper } from './staff-access.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class StaffAccessRepository {
   private mapper = inject(StaffAccessMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

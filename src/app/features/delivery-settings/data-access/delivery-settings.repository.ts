@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { DeliverySettingsApi } from './delivery-settings.api';
 import { DeliverySettingsMapper } from './delivery-settings.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class DeliverySettingsRepository {
   private mapper = inject(DeliverySettingsMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

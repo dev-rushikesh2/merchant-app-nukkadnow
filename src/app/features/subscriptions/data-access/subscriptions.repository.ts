@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { SubscriptionsApi } from './subscriptions.api';
 import { SubscriptionsMapper } from './subscriptions.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class SubscriptionsRepository {
   private mapper = inject(SubscriptionsMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

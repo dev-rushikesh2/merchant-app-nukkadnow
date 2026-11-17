@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { PickupSlotsApi } from './pickup-slots.api';
 import { PickupSlotsMapper } from './pickup-slots.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class PickupSlotsRepository {
   private mapper = inject(PickupSlotsMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

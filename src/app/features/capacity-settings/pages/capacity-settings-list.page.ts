@@ -40,36 +40,45 @@ export class CapacitySettingsListPageComponent {
   readonly bufferMinutes = signal<number>(15);
   readonly kitchenLeadTime = signal<number>(20);
 
-  // Blackout Windows
-  readonly blackoutWindows = signal<BlackoutTimeWindow[]>([
-    {
-      id: 'bw-1',
-      name: 'Kitchen Afternoon Deep Clean',
-      startTime: '14:30',
-      endTime: '16:00',
-      days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-      isActive: true
-    },
-    {
-      id: 'bw-2',
-      name: 'Evening Shift Changeover',
-      startTime: '18:00',
-      endTime: '18:30',
-      days: ['All Days'],
-      isActive: true
-    }
-  ]);
+  // Blackout Windows (configurable per store)
+  readonly blackoutWindows = signal<BlackoutTimeWindow[]>([]);
 
-  // Today's Live Slots Schedule
-  readonly todaySlots = signal<PickupSlotPreview[]>([
-    { id: 's1', timeRange: '10:00 AM – 10:30 AM', bookedCount: 12, capacity: 12, status: 'Full' },
-    { id: 's2', timeRange: '10:30 AM – 11:00 AM', bookedCount: 9, capacity: 12, status: 'Filling Fast' },
-    { id: 's3', timeRange: '11:00 AM – 11:30 AM', bookedCount: 6, capacity: 12, status: 'Open' },
-    { id: 's4', timeRange: '11:30 AM – 12:00 PM', bookedCount: 4, capacity: 12, status: 'Open' },
-    { id: 's5', timeRange: '12:00 PM – 12:30 PM', bookedCount: 8, capacity: 12, status: 'Open' },
-    { id: 's6', timeRange: '02:30 PM – 04:00 PM', bookedCount: 0, capacity: 12, status: 'Paused' },
-    { id: 's7', timeRange: '04:00 PM – 04:30 PM', bookedCount: 3, capacity: 12, status: 'Open' }
-  ]);
+  // Paused slots
+  readonly pausedSlotIds = signal<Set<string>>(new Set());
+
+  // Dynamic slots generated from store operating schedule
+  readonly todaySlots = computed<PickupSlotPreview[]>(() => {
+    const interval = this.slotInterval();
+    const slots: PickupSlotPreview[] = [];
+    const paused = this.pausedSlotIds();
+
+    for (let hour = 9; hour < 21; hour++) {
+      for (let min = 0; min < 60; min += interval) {
+        const startH = hour > 12 ? hour - 12 : hour;
+        const startAmPm = hour >= 12 ? 'PM' : 'AM';
+        const nextMin = min + interval;
+        const nextHour = nextMin >= 60 ? hour + 1 : hour;
+        const finalMin = nextMin % 60;
+        const endH = nextHour > 12 ? nextHour - 12 : nextHour;
+        const endAmPm = nextHour >= 12 ? 'PM' : 'AM';
+
+        const sMin = min < 10 ? '0' + min : String(min);
+        const fMin = finalMin < 10 ? '0' + finalMin : String(finalMin);
+        const timeRange = `${startH}:${sMin} ${startAmPm} – ${endH}:${fMin} ${endAmPm}`;
+        const slotId = `slot-${hour}-${min}`;
+        const isPaused = paused.has(slotId);
+
+        slots.push({
+          id: slotId,
+          timeRange,
+          bookedCount: 0,
+          capacity: this.maxOrdersPerSlot(),
+          status: isPaused ? 'Paused' : 'Open'
+        });
+      }
+    }
+    return slots;
+  });
 
   // Modal
   readonly showAddBlackoutModal = signal<boolean>(false);
@@ -86,15 +95,12 @@ export class CapacitySettingsListPageComponent {
   }
 
   toggleSlotPause(slotId: string) {
-    this.todaySlots.update(slots =>
-      slots.map(s => {
-        if (s.id === slotId) {
-          const newStatus = s.status === 'Paused' ? 'Open' : 'Paused';
-          return { ...s, status: newStatus };
-        }
-        return s;
-      })
-    );
+    this.pausedSlotIds.update(set => {
+      const next = new Set(set);
+      if (next.has(slotId)) next.delete(slotId);
+      else next.add(slotId);
+      return next;
+    });
     this.showToast('Slot status updated.');
   }
 

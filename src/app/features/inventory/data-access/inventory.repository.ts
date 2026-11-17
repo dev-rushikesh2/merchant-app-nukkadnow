@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { InventoryApi } from './inventory.api';
 import { InventoryMapper } from './inventory.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class InventoryRepository {
   private mapper = inject(InventoryMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

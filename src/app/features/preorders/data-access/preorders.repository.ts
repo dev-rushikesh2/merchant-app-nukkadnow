@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { PreordersApi } from './preorders.api';
 import { PreordersMapper } from './preorders.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class PreordersRepository {
   private mapper = inject(PreordersMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

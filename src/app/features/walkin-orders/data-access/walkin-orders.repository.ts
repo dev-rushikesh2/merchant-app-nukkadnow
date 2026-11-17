@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { WalkinOrdersApi } from './walkin-orders.api';
 import { WalkinOrdersMapper } from './walkin-orders.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class WalkinOrdersRepository {
   private mapper = inject(WalkinOrdersMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

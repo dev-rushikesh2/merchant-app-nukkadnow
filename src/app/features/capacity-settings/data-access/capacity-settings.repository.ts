@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { CapacitySettingsApi } from './capacity-settings.api';
 import { CapacitySettingsMapper } from './capacity-settings.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class CapacitySettingsRepository {
   private mapper = inject(CapacitySettingsMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

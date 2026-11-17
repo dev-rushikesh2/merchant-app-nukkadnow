@@ -10,6 +10,6 @@ export class CatalogueRepository {
   private mapper = inject(CatalogueMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

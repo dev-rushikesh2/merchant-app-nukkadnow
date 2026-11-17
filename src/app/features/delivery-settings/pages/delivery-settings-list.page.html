@@ -199,10 +199,27 @@
       <section class="config-card">
         <div class="card-header-row">
           <h2 class="card-title">In-Store Delivery Riders</h2>
-          <span class="riders-count-pill">{{ riders().length }} Staff</span>
+          <button type="button" class="btn-add-pin" (click)="showAddRider.set(!showAddRider())">
+            {{ showAddRider() ? 'Cancel' : '+ Add Rider' }}
+          </button>
         </div>
 
+        @if (showAddRider()) {
+          <div class="rider-add-box" style="padding: 1rem; margin-bottom: 1rem; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+            <input type="text" class="pincode-input" style="width: 100%; margin-bottom: 0.5rem;" placeholder="Rider Full Name" [ngModel]="newRiderName()" (ngModelChange)="newRiderName.set($event)" />
+            <input type="text" class="pincode-input" style="width: 100%; margin-bottom: 0.5rem;" placeholder="Phone (+91 ...)" [ngModel]="newRiderPhone()" (ngModelChange)="newRiderPhone.set($event)" />
+            <input type="text" class="pincode-input" style="width: 100%; margin-bottom: 0.5rem;" placeholder="Vehicle Details (e.g. MH-31-AB-1234)" [ngModel]="newRiderVehicle()" (ngModelChange)="newRiderVehicle.set($event)" />
+            <button type="button" class="btn-add-pin" (click)="addRider()">Save Delivery Partner</button>
+          </div>
+        }
+
         <div class="riders-list">
+          @if (riders().length === 0) {
+            <div style="padding: 1.5rem 1rem; text-align: center; color: #64748b;">
+              <p>No delivery riders registered yet.</p>
+              <p style="font-size: 13px; margin-top: 0.25rem;">Register your in-store staff to assign direct neighborhood deliveries.</p>
+            </div>
+          }
           @for (r of riders(); track r.id) {
             <div class="rider-card">
               <div class="rider-top">

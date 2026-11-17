@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { AnalyticsApi } from './analytics.api';
 import { AnalyticsMapper } from './analytics.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class AnalyticsRepository {
   private mapper = inject(AnalyticsMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

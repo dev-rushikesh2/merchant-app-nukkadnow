@@ -10,6 +10,6 @@ export class OrderInboxRepository {
   private mapper = inject(OrderInboxMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList().pipe(map(res => res.data || []));
   }
 }

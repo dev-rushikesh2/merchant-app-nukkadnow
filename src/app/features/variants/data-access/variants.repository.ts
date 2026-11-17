@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { VariantsApi } from './variants.api';
 import { VariantsMapper } from './variants.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class VariantsRepository {
   private mapper = inject(VariantsMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

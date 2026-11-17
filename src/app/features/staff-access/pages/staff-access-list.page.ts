@@ -1,7 +1,9 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
 
 export type StaffRole = 'OWNER' | 'MANAGER' | 'CASHIER' | 'CHEF';
 
@@ -24,62 +26,24 @@ export interface StaffMember {
   styleUrls: ['./staff-access-list.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class StaffAccessListPageComponent {
-  // Current active staff on this device
+export class StaffAccessListPageComponent implements OnInit, OnDestroy {
+  private authStore = inject(MerchantAuthStore);
+  private sub = new Subscription();
+
+  // Active Staff using this terminal
   readonly activeStaff = signal<StaffMember>({
-    id: 'staff-1',
-    name: 'Rushikesh Khawane',
-    phone: '+91 98765 43210',
+    id: '',
+    name: '',
+    phone: '',
     role: 'OWNER',
     pin: '1234',
-    outlet: 'Main Dharampeth Outlet',
+    outlet: '',
     isActive: true,
-    lastActive: 'Now'
+    lastActive: 'Active Now'
   });
 
   // Staff Roster
-  readonly staffList = signal<StaffMember[]>([
-    {
-      id: 'staff-1',
-      name: 'Rushikesh Khawane',
-      phone: '+91 98765 43210',
-      role: 'OWNER',
-      pin: '1234',
-      outlet: 'Main Dharampeth Outlet',
-      isActive: true,
-      lastActive: 'Active Now'
-    },
-    {
-      id: 'staff-2',
-      name: 'Deepak Deshmukh',
-      phone: '+91 98220 99887',
-      role: 'MANAGER',
-      pin: '4567',
-      outlet: 'Main Dharampeth Outlet',
-      isActive: true,
-      lastActive: 'Today, 10:15 AM'
-    },
-    {
-      id: 'staff-3',
-      name: 'Pooja Sharma',
-      phone: '+91 98221 44556',
-      role: 'CASHIER',
-      pin: '8910',
-      outlet: 'Main Dharampeth Outlet',
-      isActive: true,
-      lastActive: 'Today, 09:30 AM'
-    },
-    {
-      id: 'staff-4',
-      name: 'Chef Anil Verma',
-      phone: '+91 97654 33221',
-      role: 'CHEF',
-      pin: '2345',
-      outlet: 'Main Dharampeth Outlet',
-      isActive: true,
-      lastActive: 'Yesterday'
-    }
-  ]);
+  readonly staffList = signal<StaffMember[]>([]);
 
   // Masked PINs toggle state
   readonly revealedPins = signal<Record<string, boolean>>({});
@@ -100,6 +64,36 @@ export class StaffAccessListPageComponent {
 
   // Toast
   readonly toast = signal<string | null>(null);
+
+  ngOnInit(): void {
+    this.syncStaffWithActiveMerchant();
+    this.sub.add(
+      this.authStore.tenantSwitched$.subscribe(() => {
+        this.syncStaffWithActiveMerchant();
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.sub.unsubscribe();
+  }
+
+  private syncStaffWithActiveMerchant(): void {
+    const m = this.authStore.activeMerchant();
+    const owner: StaffMember = {
+      id: m.id,
+      name: m.fullName,
+      phone: m.phoneNumber,
+      role: 'OWNER',
+      pin: '1234',
+      outlet: m.merchantName,
+      isActive: true,
+      lastActive: 'Active Now'
+    };
+
+    this.activeStaff.set(owner);
+    this.staffList.set([owner]);
+  }
 
   togglePinReveal(id: string) {
     this.revealedPins.update(map => ({
@@ -159,13 +153,14 @@ export class StaffAccessListPageComponent {
       return;
     }
 
+    const m = this.authStore.activeMerchant();
     const newStaff: StaffMember = {
       id: `staff-${Date.now()}`,
       name,
       phone,
       role: this.newRole(),
       pin,
-      outlet: 'Main Dharampeth Outlet',
+      outlet: m.merchantName,
       isActive: true,
       lastActive: 'Just invited'
     };

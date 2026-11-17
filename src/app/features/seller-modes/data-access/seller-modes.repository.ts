@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { SellerModesApi } from './seller-modes.api';
 import { SellerModesMapper } from './seller-modes.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class SellerModesRepository {
   private mapper = inject(SellerModesMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

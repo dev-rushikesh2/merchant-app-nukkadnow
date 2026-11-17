@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { SettingsApi } from './settings.api';
 import { SettingsMapper } from './settings.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class SettingsRepository {
   private mapper = inject(SettingsMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

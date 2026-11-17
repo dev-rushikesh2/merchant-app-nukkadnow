@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BillingApi } from './billing.api';
 import { BillingMapper } from './billing.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class BillingRepository {
   private mapper = inject(BillingMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList();
   }
 }

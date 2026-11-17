@@ -35,4 +35,13 @@ export class OrderInboxApi {
     const cleanId = encodeURIComponent(orderId.replace('#', ''));
     return this.http.patch<any>(`${this.baseUrl}/${cleanId}/status`, { status, prepMinutes });
   }
+
+  getOrderDetails(orderId: string): Observable<any> {
+    const cleanId = encodeURIComponent(orderId.replace('#', ''));
+    return this.http.get<any>(`${this.baseUrl}/${cleanId}`);
+  }
+
+  createWalkinOrder(payload: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/walkin`, payload);
+  }
 }

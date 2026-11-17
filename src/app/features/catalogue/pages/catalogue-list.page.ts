@@ -32,15 +32,50 @@ export class CatalogueListPageComponent {
   // Search
   readonly searchInput = signal<string>('');
 
-  // Categories list
-  readonly categoriesList = signal<CategoryInfo[]>([
-    { id: 'cat-1', name: 'Sweets & Snacks', emoji: '🥟', itemCount: 18, isActive: true },
-    { id: 'cat-2', name: 'Fresh Meals & Tiffin', emoji: '🍱', itemCount: 12, isActive: true },
-    { id: 'cat-3', name: 'Bakery & Cakes', emoji: '🍞', itemCount: 15, isActive: true },
-    { id: 'cat-4', name: 'Dairy & Milk', emoji: '🥛', itemCount: 9, isActive: true },
-    { id: 'cat-5', name: 'Grocery & Kirana', emoji: '🍃', itemCount: 34, isActive: true },
-    { id: 'cat-6', name: 'Beverages & Chai', emoji: '☕', itemCount: 14, isActive: true }
-  ]);
+  // Custom added categories
+  readonly customCategories = signal<CategoryInfo[]>([]);
+
+  // Disabled categories
+  readonly disabledCategoryIds = signal<Set<string>>(new Set());
+
+  // Dynamic Categories list derived from real active merchant products
+  readonly categoriesList = computed<CategoryInfo[]>(() => {
+    const prods = this.store.products();
+    const map = new Map<string, number>();
+    for (const p of prods) {
+      const cat = p.category || 'General';
+      map.set(cat, (map.get(cat) || 0) + 1);
+    }
+
+    const disabled = this.disabledCategoryIds();
+    const derived: CategoryInfo[] = Array.from(map.entries()).map(([name, itemCount], idx) => {
+      const id = `cat-${idx + 1}`;
+      return {
+        id,
+        name,
+        emoji: this.getCategoryEmoji(name),
+        itemCount,
+        isActive: !disabled.has(id)
+      };
+    });
+
+    const custom = this.customCategories()
+      .filter(c => !map.has(c.name))
+      .map(c => ({ ...c, isActive: !disabled.has(c.id) }));
+
+    return [...derived, ...custom];
+  });
+
+  private getCategoryEmoji(name: string): string {
+    const n = (name || '').toLowerCase();
+    if (n.includes('sweet') || n.includes('dessert') || n.includes('cake') || n.includes('bakery')) return '🍰';
+    if (n.includes('veg') || n.includes('sabji') || n.includes('fruit')) return '🥦';
+    if (n.includes('grocery') || n.includes('kirana') || n.includes('grain')) return '🌾';
+    if (n.includes('dairy') || n.includes('milk')) return '🥛';
+    if (n.includes('snack') || n.includes('chivda') || n.includes('namkeen')) return '🥟';
+    if (n.includes('chai') || n.includes('tea') || n.includes('coffee') || n.includes('beverage')) return '☕';
+    return '🏷️';
+  }
 
   // Add Category modal state
   readonly showAddCategoryModal = signal<boolean>(false);
@@ -112,9 +147,12 @@ export class CatalogueListPageComponent {
   }
 
   toggleCategory(id: string) {
-    this.categoriesList.update(list =>
-      list.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c)
-    );
+    this.disabledCategoryIds.update(set => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   addCategory() {
@@ -129,7 +167,7 @@ export class CatalogueListPageComponent {
       isActive: true
     };
 
-    this.categoriesList.update(list => [...list, newCat]);
+    this.customCategories.update(list => [...list, newCat]);
     this.showAddCategoryModal.set(false);
     this.newCategoryName.set('');
     this.showToast(`Category "${name}" created successfully!`);

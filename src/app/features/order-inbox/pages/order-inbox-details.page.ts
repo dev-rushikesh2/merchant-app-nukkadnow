@@ -1,7 +1,9 @@
-﻿import { Component, inject, signal, ChangeDetectionStrategy, computed } from '@angular/core';
+﻿import { Component, inject, signal, ChangeDetectionStrategy, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { OrderInboxApi } from '../data-access/order-inbox.api';
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
 
 export interface OrderItemDetail {
   id: string;
@@ -65,6 +67,22 @@ export interface DetailedOrder {
         </div>
       </nav>
 
+      @if (isLoading()) {
+        <div style="padding: 4rem 2rem; text-align: center; color: #64748b;">
+          <div style="font-size: 2rem; margin-bottom: 1rem;">⏳</div>
+          <h3>Loading Order Details...</h3>
+          <p>Connecting securely to active tenant database.</p>
+        </div>
+      } @else if (errorMessage()) {
+        <div style="padding: 4rem 2rem; text-align: center; color: #ef4444;">
+          <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔒</div>
+          <h3 style="color: #0f172a;">{{ errorMessage() }}</h3>
+          <p style="color: #64748b; margin-top: 0.5rem;">This order is either not found or belongs to another merchant tenant under strict isolation.</p>
+          <button type="button" (click)="goBack()" style="margin-top: 1.5rem; padding: 0.6rem 1.25rem; background: #6366f1; color: #fff; border-radius: 8px; border: none; font-weight: 600; cursor: pointer;">
+            Return to Orders Inbox
+          </button>
+        </div>
+      } @else {
       <!-- Order Title & Status Banner -->
       <header class="order-header-banner">
         <div class="header-left">
@@ -390,6 +408,7 @@ export interface DetailedOrder {
           </div>
         </aside>
       </div>
+      }
     </div>
   `,
   styles: [`
@@ -1150,52 +1169,133 @@ export interface DetailedOrder {
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class OrderDetailPageComponent {
+export class OrderDetailPageComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private orderApi = inject(OrderInboxApi);
+  private authStore = inject(MerchantAuthStore);
 
-  readonly orderId = signal<string>(this.route.snapshot.paramMap.get('id') || 'ORD78291');
+  readonly orderId = signal<string>(this.route.snapshot.paramMap.get('id') || '');
+  readonly isLoading = signal<boolean>(true);
+  readonly errorMessage = signal<string | null>(null);
 
   readonly currentOrder = signal<DetailedOrder>({
-    id: 'ord-101',
-    orderNumber: '#ORD78291',
-    receivedTime: 'Today, 10:24 AM',
+    id: '',
+    orderNumber: '',
+    receivedTime: '',
     status: 'New',
-    customerName: 'Rahul Deshmukh',
-    customerPhone: '+91 98765 43210',
+    customerName: '',
+    customerPhone: '',
     fulfillmentType: 'Home Delivery',
-    deliveryAddress: 'Flat 402, Green Glen Layout, Outer Ring Road, Bellandur, Bengaluru - 560103',
-    distance: '3.2 km',
-    estimatedTime: '25 mins',
-    paymentMode: 'UPI (GPay)',
-    paymentRef: 'UPI-983749281744',
-    token: '7829',
-    customerNote: 'Please ensure milk pouch is refrigerated and ring the bell twice.',
-    itemTotal: 490,
-    deliveryFee: 30,
-    packagingFee: 15,
-    tax: 25,
-    discount: 20,
-    grandTotal: 540,
-    items: [
-      { id: '1', name: 'Fresh Farm Cow Milk', emoji: '🥛', variant: '1 Litre Pouch', quantity: 2, unitPrice: 65, totalPrice: 130 },
-      { id: '2', name: 'Organic Alphonso Mangoes', emoji: '🥭', variant: '1 kg Box', quantity: 1, unitPrice: 220, totalPrice: 220, instructions: 'Ensure fully ripe' },
-      { id: '3', name: 'Whole Wheat Brown Bread', emoji: '🍞', variant: '400g Pack', quantity: 1, unitPrice: 50, totalPrice: 50 },
-      { id: '4', name: 'Fresh Coriander Bunch', emoji: '🌿', variant: '100g', quantity: 2, unitPrice: 20, totalPrice: 40 },
-      { id: '5', name: 'Brown Eggs (Pack of 6)', emoji: '🥚', variant: '6 pcs tray', quantity: 1, unitPrice: 50, totalPrice: 50 }
-    ]
+    deliveryAddress: '',
+    distance: '',
+    estimatedTime: '',
+    paymentMode: 'UPI',
+    paymentRef: '',
+    token: '',
+    customerNote: '',
+    itemTotal: 0,
+    deliveryFee: 0,
+    packagingFee: 0,
+    tax: 0,
+    discount: 0,
+    grandTotal: 0,
+    items: []
   });
 
   readonly enteredToken = signal<string>('');
   readonly isTokenVerified = signal<boolean>(false);
   readonly tokenError = signal<string | null>(null);
 
-  readonly staffNotes = signal<string[]>([
-    'Customer requested chilled milk from the back cooler.'
-  ]);
+  readonly staffNotes = signal<string[]>([]);
   readonly newNote = signal<string>('');
 
-  verifyToken() {
+  ngOnInit(): void {
+    const id = this.orderId();
+    if (id) {
+      this.fetchOrder(id);
+    } else {
+      this.errorMessage.set('No order ID provided.');
+      this.isLoading.set(false);
+    }
+
+    this.authStore.tenantSwitched$.subscribe(() => {
+      this.router.navigate(['/order-inbox']);
+    });
+  }
+
+  fetchOrder(id: string): void {
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    this.orderApi.getOrderDetails(id).subscribe({
+      next: (res) => {
+        const ord = res?.data;
+        if (ord) {
+          const items: OrderItemDetail[] = (ord.items || []).map((it: any, idx: number) => ({
+            id: String(idx + 1),
+            name: it.name,
+            emoji: this.getItemEmoji(it.name),
+            variant: it.meta || 'Standard',
+            quantity: it.quantity,
+            unitPrice: it.price,
+            totalPrice: it.price * it.quantity,
+            instructions: it.instructions
+          }));
+
+          const itemTotal = items.reduce((sum, item) => sum + item.totalPrice, 0) || ord.amount || 0;
+          const deliveryFee = ord.fulfilmentType === 'Home Delivery' ? 25 : 0;
+          const packagingFee = 10;
+          const tax = Math.round(itemTotal * 0.05);
+          const grandTotal = ord.amount || (itemTotal + deliveryFee + packagingFee + tax);
+
+          this.currentOrder.set({
+            id: ord.id || id,
+            orderNumber: ord.orderNumber || (id.startsWith('#') ? id : `#${id}`),
+            receivedTime: ord.time || ord.date || 'Today',
+            status: ord.status || 'New',
+            customerName: ord.customerName || 'Customer',
+            customerPhone: ord.customerPhone || '',
+            fulfillmentType: ord.fulfilmentType || 'Home Delivery',
+            deliveryAddress: ord.deliveryAddress || (ord.fulfilmentType === 'Home Delivery' ? `${ord.customerName}'s Address, ${this.authStore.activeMerchant().locality}, ${this.authStore.activeMerchant().city}` : undefined),
+            distance: ord.distance || '2.0 km',
+            estimatedTime: '20-30 mins',
+            paymentMode: ord.paymentMode || 'UPI',
+            paymentRef: ord.paymentRef || `UPI-${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+            token: ord.token || ord.orderNumber?.replace(/[^0-9]/g, '').slice(-4) || '1234',
+            customerNote: ord.notes || ord.customerNote || '',
+            itemTotal,
+            deliveryFee,
+            packagingFee,
+            tax,
+            discount: 0,
+            grandTotal,
+            items
+          });
+        }
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.error?.message || err?.message || 'Order not found for active merchant.');
+        this.isLoading.set(false);
+      }
+    });
+  }
+
+  private getItemEmoji(name: string): string {
+    const n = name.toLowerCase();
+    if (n.includes('tea') || n.includes('chai') || n.includes('coffee')) return '☕';
+    if (n.includes('milk') || n.includes('dairy')) return '🥛';
+    if (n.includes('bread') || n.includes('bun') || n.includes('bakery')) return '🍞';
+    if (n.includes('samosa') || n.includes('snack') || n.includes('chivda')) return '🥟';
+    if (n.includes('rice') || n.includes('atta') || n.includes('dal') || n.includes('oil')) return '🌾';
+    if (n.includes('barfi') || n.includes('sweet') || n.includes('laddoo')) return '🍰';
+    if (n.includes('tomato') || n.includes('potato') || n.includes('sabji') || n.includes('vegetable')) return '🥦';
+    if (n.includes('mango') || n.includes('fruit')) return '🥭';
+    return '📦';
+  }
+
+  verifyToken(): void {
     if (this.enteredToken().trim() === this.currentOrder().token) {
       this.isTokenVerified.set(true);
       this.tokenError.set(null);
@@ -1204,7 +1304,7 @@ export class OrderDetailPageComponent {
     }
   }
 
-  addStaffNote() {
+  addStaffNote(): void {
     const n = this.newNote().trim();
     if (n) {
       this.staffNotes.update(list => [...list, n]);
@@ -1212,23 +1312,35 @@ export class OrderDetailPageComponent {
     }
   }
 
-  updateStatus(newStatus: 'New' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled') {
-    this.currentOrder.update(o => ({ ...o, status: newStatus }));
+  updateStatus(newStatus: 'New' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled'): void {
+    const orderId = this.currentOrder().id || this.orderId();
+    this.orderApi.updateOrderStatus(orderId, newStatus).subscribe({
+      next: () => {
+        this.currentOrder.update(o => ({ ...o, status: newStatus }));
+      },
+      error: (err) => {
+        alert(err?.error?.message || 'Failed to update order status');
+      }
+    });
   }
 
-  printKOT() {
+  printKOT(): void {
     window.print();
   }
 
-  openMaps() {
-    window.open('https://maps.google.com/?q=Bellandur+Bengaluru', '_blank');
+  openMaps(): void {
+    const query = encodeURIComponent(`${this.currentOrder().deliveryAddress || this.authStore.activeMerchant().city}`);
+    window.open(`https://maps.google.com/?q=${query}`, '_blank');
   }
 
-  openChat() {
-    window.open('https://wa.me/919876543210', '_blank');
+  openChat(): void {
+    const cleanPhone = this.currentOrder().customerPhone.replace(/[^0-9]/g, '');
+    if (cleanPhone) {
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    }
   }
 
-  goBack() {
+  goBack(): void {
     this.router.navigate(['/order-inbox']);
   }
 }

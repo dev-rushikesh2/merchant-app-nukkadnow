@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { DashboardApi } from './dashboard.api';
 import { DashboardMapper } from './dashboard.mapper';
 import { Observable, of, map } from 'rxjs';
@@ -10,6 +10,6 @@ export class DashboardRepository {
   private mapper = inject(DashboardMapper);
 
   getList(): Observable<any[]> {
-    return of([]);
+    return this.api.fetchList().pipe(map(res => res.recentOrders || []));
   }
 }

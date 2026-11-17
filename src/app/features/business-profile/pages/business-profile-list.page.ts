@@ -70,10 +70,7 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
     { day: 'Sunday', isOpen: true, openTime: '08:00', closeTime: '22:30' }
   ]);
 
-  readonly holidays = signal<HolidayClosure[]>([
-    { id: 'h1', title: 'Diwali Balipratipada', date: '01 Nov 2026' },
-    { id: 'h2', title: 'Makar Sankranti', date: '14 Jan 2027' }
-  ]);
+  readonly holidays = signal<HolidayClosure[]>([]);
 
   readonly showAddHolidayModal = signal<boolean>(false);
   readonly newHolidayName = signal<string>('');
@@ -103,16 +100,16 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
         const p = res?.data || res?.merchant;
         if (p) {
           this.shopName.set(p.shopName || p.organizationName || '');
-          this.businessCategory.set(p.businessCategory || p.category || 'Kirana & Supermarket');
+          this.businessCategory.set(p.businessCategory || p.category || 'Retail Store');
           this.ownerName.set(p.ownerName || p.contactName || '');
           this.phone.set(p.phone || p.contactPhone || '');
           this.email.set(p.email || '');
           this.tagline.set(p.tagline || p.description || '');
           this.addressStreet.set(p.addressStreet || p.addressLine || '');
-          this.city.set(p.city || 'Nagpur');
+          this.city.set(p.city || this.authStore.activeMerchant().city || 'Nagpur');
           this.pincode.set(p.pincode || '440010');
-          this.gstin.set(p.gstin || '27AADCS5432K1Z9');
-          this.fssai.set(p.fssai || '11522036000202');
+          this.gstin.set(p.gstin || '');
+          this.fssai.set(p.fssai || '');
           if (p.coverUrl) this.coverUrl.set(p.coverUrl);
           if (p.logoUrl) this.logoUrl.set(p.logoUrl);
           if (p.storePhotos) this.storePhotos.set(p.storePhotos);
@@ -128,6 +125,8 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
           this.email.set(active.email);
           this.businessCategory.set(active.category);
           this.city.set(active.city);
+          this.gstin.set('');
+          this.fssai.set('');
         }
         this.isLoading.set(false);
       },
@@ -139,6 +138,8 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
         this.email.set(active.email);
         this.businessCategory.set(active.category);
         this.city.set(active.city);
+        this.gstin.set('');
+        this.fssai.set('');
         this.isLoading.set(false);
       }
     });
