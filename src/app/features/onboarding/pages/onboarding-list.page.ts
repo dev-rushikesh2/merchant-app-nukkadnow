@@ -1,176 +1,186 @@
-﻿import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+﻿import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-
-export interface BusinessTypeItem {
-  id: string;
-  name: string;
-  desc: string;
-  icon: string;
-}
-
-export interface DayOption {
-  day: string;
-  short: string;
-  selected: boolean;
-}
-
-export interface DocumentItem {
-  id: string;
-  title: string;
-  sub: string;
-  required: boolean;
-  uploaded: boolean;
-  fileName?: string;
-}
+import { BusinessRegistrationStore } from '../state/business-registration.store';
+import { RegistrationHeaderComponent } from '../components/registration-header.component';
+import { RegistrationStepperComponent } from '../components/registration-stepper.component';
+import { MapPickerPreviewComponent } from '../components/map-picker-preview.component';
+import { DocumentUploaderComponent } from '../components/document-uploader.component';
+import { BusinessTypeId, ApplicationStatusCode } from '../models/business-registration.model';
 
 @Component({
   selector: 'merchant-onboarding-list-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RegistrationHeaderComponent,
+    RegistrationStepperComponent,
+    MapPickerPreviewComponent,
+    DocumentUploaderComponent
+  ],
   templateUrl: './onboarding-list.page.html',
   styleUrls: ['./onboarding-list.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OnboardingListPageComponent {
-  router = inject(Router);
+  readonly store = inject(BusinessRegistrationStore);
+  private router = inject(Router);
 
-  // Active step: 1 through 7
-  readonly currentStep = signal<number>(1);
-
-  // Step 1: Business Type
-  readonly selectedBusinessType = signal<string>('retail');
-  readonly businessTypes: BusinessTypeItem[] = [
-    { id: 'retail', name: 'Retail Shop', desc: 'Grocery, Dairy, Daily Needs', icon: '🏪' },
-    { id: 'produce', name: 'Fruit & Vegetable', desc: 'Fresh Produce, Farm Goods', icon: '🥗' },
-    { id: 'pharmacy', name: 'Medical / Pharmacy', desc: 'Medicines, Healthcare', icon: '🏥' },
-    { id: 'fnb', name: 'Food & Beverages', desc: 'Restaurant, Café, Bakery', icon: '🍴' },
-    { id: 'wholesale', name: 'Wholesale / Distributor', desc: 'Bulk Supply, B2B', icon: '📦' },
-    { id: 'other', name: 'Other', desc: 'Services, Repair, General', icon: '⊞' }
+  // Categories list for Business Information
+  readonly categoryOptions: string[] = [
+    'Grocery & Daily Needs',
+    'Fruits & Vegetables',
+    'Dairy & Bakery',
+    'Pharmacy & Healthcare',
+    'Snacks & Street Food',
+    'Clothing & Apparel',
+    'Electronics & Electricals',
+    'Home & Kitchen',
+    'Gifts & Stationery',
+    'Personal Care & Beauty',
+    'Hardware & Sanitary',
+    'Other Neighbourhood Business'
   ];
 
-  // Step 2: Profile
-  shopName = 'Shree Fresh Mart';
-  businessCategory = 'Retail Shop (Grocery, Daily Needs)';
-  businessMobile = '+91 98765 43210';
-  gstin = '27ABCDE1234F1Z5';
-  businessDescription = 'Grocery, dairy, household and daily needs.';
+  // States & Cities in India
+  readonly stateOptions: string[] = ['Maharashtra', 'Gujarat', 'Karnataka', 'Delhi', 'Madhya Pradesh', 'Goa', 'Telangana'];
+  readonly districtOptions: string[] = ['Akola', 'Amravati', 'Nagpur', 'Pune', 'Mumbai City', 'Mumbai Suburban', 'Thane', 'Nashik'];
+  readonly cityOptions: string[] = ['Akola', 'Amravati', 'Nagpur', 'Pune', 'Mumbai', 'Thane', 'Nashik'];
+  readonly localityOptions: string[] = ['Civil Lines', 'Main Market', 'Ramdas Peth', 'Gandhi Nagar', 'Jatharpeth', 'Gorakshan Road', 'Kaulkhed'];
 
-  // Step 3: Location
-  addressLine1 = 'Shop No. 12, Civil Lines';
-  addressLine2 = 'Near Old Bus Stand';
-  city = 'Amravati';
-  pincode = '444601';
-  isLocating = signal<boolean>(false);
-  locationPinStatus = signal<string>('Civil Lines, Amravati');
+  // Fulfilment Dropdown Options
+  readonly serviceRadiusOptions: string[] = ['1 km', '2 km', '3 km', '5 km', '8 km', '10 km', '15 km', '20 km'];
+  readonly prepTimeOptions: string[] = ['15 minutes', '20 minutes', '30 minutes', '45 minutes', '60 minutes', '90 minutes'];
 
-  // Step 4: Fulfilment
-  homeDelivery = signal<boolean>(true);
-  deliveryRadius = signal<string>('15 km');
-  minOrderValue = signal<number>(0);
-  storePickup = signal<boolean>(true);
-  expressDelivery = signal<boolean>(false);
+  // Time Options for Business Hours
+  readonly timeSlots: string[] = [
+    '06:00 AM', '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
+    '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM',
+    '08:00 PM', '09:00 PM', '10:00 PM', '11:00 PM'
+  ];
 
-  // Step 5: Hours
-  shopStatus = signal<boolean>(true);
-  workingDays = signal<DayOption[]>([
-    { day: 'Monday', short: 'Mon', selected: true },
-    { day: 'Tuesday', short: 'Tue', selected: true },
-    { day: 'Wednesday', short: 'Wed', selected: true },
-    { day: 'Thursday', short: 'Thu', selected: true },
-    { day: 'Friday', short: 'Fri', selected: true },
-    { day: 'Saturday', short: 'Sat', selected: false },
-    { day: 'Sunday', short: 'Sun', selected: false }
-  ]);
-  openingTime = signal<string>('08:00 AM');
-  closingTime = signal<string>('09:00 PM');
-  open7Days = signal<boolean>(false);
+  // Holiday Modal State
+  readonly isHolidayModalOpen = signal<boolean>(false);
+  readonly newHolidayName = signal<string>('');
+  readonly newHolidayDate = signal<string>('');
 
-  // Step 6: Compliance
-  documents = signal<DocumentItem[]>([
-    { id: 'reg', title: 'Business Registration Proof', sub: 'Shop Act / Udyam / GST Certificate', required: true, uploaded: true, fileName: 'shop_act_2026.pdf' },
-    { id: 'id', title: 'Owner Identity Proof', sub: 'Aadhaar / PAN / Voter ID', required: true, uploaded: true, fileName: 'aadhaar_card.pdf' },
-    { id: 'addr', title: 'Address Proof', sub: 'Electricity Bill / Rent Agreement / Property Proof', required: true, uploaded: true, fileName: 'electricity_bill.pdf' },
-    { id: 'gst', title: 'GST Certificate (Optional)', sub: 'For GST registered businesses', required: false, uploaded: false }
-  ]);
-  confirmValidDocs = signal<boolean>(true);
+  // Temporary Closure Modal State
+  readonly isClosureModalOpen = signal<boolean>(false);
+  readonly closureStart = signal<string>('');
+  readonly closureEnd = signal<string>('');
+  readonly closureReason = signal<string>('Shop Renovation');
 
-  // Toast
-  toastMessage = signal<string | null>(null);
+  // Copy Feedback
+  readonly copiedAppId = signal<boolean>(false);
 
-  nextStep() {
-    if (this.currentStep() < 7) {
-      this.currentStep.update(s => s + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      this.finishOnboarding();
-    }
+  // Details Modal in Status Screen
+  readonly isDetailsModalOpen = signal<boolean>(false);
+
+  // Dynamic Header Title & Subtitle
+  getHeaderTitle(): string {
+    const s = this.store.currentStep();
+    if (s <= 6) return 'Register Your Business';
+    if (s === 7) return 'Review Your Registration';
+    return 'Application Status';
   }
 
-  prevStep() {
-    if (this.currentStep() > 1) {
-      this.currentStep.update(s => s - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      this.router.navigate(['/auth/login']);
-    }
+  getHeaderSubtitle(): string {
+    const s = this.store.currentStep();
+    if (s === 7) return 'Please review all your information. You can edit any section if needed before submitting.';
+    if (s === 8) return 'Track your business registration and next steps.';
+    return '';
   }
 
-  goToStep(step: number) {
-    this.currentStep.set(step);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  selectBusinessType(id: string) {
-    this.selectedBusinessType.set(id);
-  }
-
-  triggerGps() {
-    this.isLocating.set(true);
-    setTimeout(() => {
-      this.isLocating.set(false);
-      this.locationPinStatus.set('Sai Nagar, Amravati');
-      this.addressLine1 = 'Shop 4, Market Yard, Sai Nagar';
-      this.pincode = '444607';
-      this.showToast('Current GPS location detected (±4m)');
-    }, 600);
-  }
-
-  toggleDay(short: string) {
-    this.workingDays.update(days =>
-      days.map(d => (d.short === short ? { ...d, selected: !d.selected } : d))
-    );
-  }
-
-  toggle7Days() {
-    const nextVal = !this.open7Days();
-    this.open7Days.set(nextVal);
-    if (nextVal) {
-      this.workingDays.update(days => days.map(d => ({ ...d, selected: true })));
-    }
-  }
-
-  uploadDoc(docId: string) {
-    this.documents.update(docs =>
-      docs.map(d =>
-        d.id === docId ? { ...d, uploaded: true, fileName: `${d.id}_doc.pdf` } : d
-      )
-    );
-    this.showToast('Document uploaded successfully');
-  }
-
-  finishOnboarding() {
-    this.showToast('Shop registration submitted successfully!');
-    setTimeout(() => {
+  // Navigation handlers
+  onBack(): void {
+    const cur = this.store.currentStep();
+    if (cur === 1) {
       this.router.navigate(['/dashboard']);
-    }, 1000);
+    } else {
+      this.store.prevStep();
+    }
   }
 
-  private showToast(msg: string) {
-    this.toastMessage.set(msg);
-    setTimeout(() => {
-      this.toastMessage.set(null);
-    }, 2800);
+  onNext(): void {
+    this.store.nextStep();
+  }
+
+  goToDashboard(): void {
+    this.router.navigate(['/dashboard']);
+  }
+
+  // Copy Application ID
+  copyApplicationId(): void {
+    const id = this.store.applicationId();
+    navigator.clipboard?.writeText(id).catch(() => {});
+    this.copiedAppId.set(true);
+    setTimeout(() => this.copiedAppId.set(false), 2000);
+  }
+
+  // Modals
+  openHolidayModal(): void {
+    this.newHolidayName.set('');
+    this.newHolidayDate.set('');
+    this.isHolidayModalOpen.set(true);
+  }
+
+  closeHolidayModal(): void {
+    this.isHolidayModalOpen.set(false);
+  }
+
+  saveHoliday(): void {
+    if (this.newHolidayName().trim()) {
+      const entry = `${this.newHolidayDate() || 'Upcoming'} (${this.newHolidayName()})`;
+      this.store.hours.update(prev => ({
+        ...prev,
+        holidays: [...prev.holidays, entry]
+      }));
+      this.closeHolidayModal();
+    }
+  }
+
+  openClosureModal(): void {
+    this.isClosureModalOpen.set(true);
+  }
+
+  closeClosureModal(): void {
+    this.isClosureModalOpen.set(false);
+  }
+
+  saveClosure(): void {
+    this.store.hours.update(prev => ({
+      ...prev,
+      temporaryClosure: {
+        startDate: this.closureStart() || 'Tomorrow',
+        endDate: this.closureEnd() || 'Next Week',
+        reason: this.closureReason()
+      }
+    }));
+    this.closeClosureModal();
+  }
+
+  // File Upload Handlers
+  onDocSelected(docId: string, event: { fileName: string; fileSize: string }): void {
+    this.store.uploadDocument(docId, event.fileName, event.fileSize);
+  }
+
+  onDocRemoved(docId: string): void {
+    this.store.removeDocument(docId);
+  }
+
+  onLicenceSelected(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      const file = target.files[0];
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      this.store.uploadLicence(file.name, `${sizeMb} MB`);
+    }
+  }
+
+  // Status simulation
+  changeStatusPreview(code: ApplicationStatusCode): void {
+    this.store.setPreviewStatus(code);
   }
 }
