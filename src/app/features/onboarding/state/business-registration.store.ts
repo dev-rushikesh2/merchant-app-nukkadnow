@@ -446,6 +446,209 @@ export class BusinessRegistrationStore {
   }
 
   /**
+   * Loads complete preset data for a selected merchant and synchronizes with backend
+   */
+  loadMerchantPreset(tenantId: string): void {
+    if (tenantId === 'merchant-sabji-001') {
+      this.selectedBusinessType.set('retail');
+      this.details.set({
+        businessName: 'Patil Fresh Sabji Mandi',
+        ownerName: 'Vinod Patil',
+        mobileNumber: '+91 98230 11223',
+        email: 'vinod.patil@patilsabji.com',
+        category: 'Vegetables & Fruits',
+        description: 'Direct farm-sourced daily fresh vegetables, green leafy veggies, herbs, ginger, garlic and seasonal fruits from local Vidarbha farmers.'
+      });
+      this.location.set({
+        pincode: '440012',
+        state: 'Maharashtra',
+        district: 'Nagpur',
+        city: 'Nagpur',
+        locality: 'Sitabuldi',
+        fullAddress: 'Shop No. 4, Wholesale Sabji Mandi, Sitabuldi, Nagpur, Maharashtra - 440012',
+        coordinates: { lat: 21.1466, lng: 79.0833 },
+        homeBusinessPrivacy: false
+      });
+      this.hours.set({
+        scheduleMode: 'weekly',
+        days: [
+          { day: 'Monday', short: 'Mon', isOpen: true, openTime: '06:00 AM', closeTime: '08:30 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Tuesday', short: 'Tue', isOpen: true, openTime: '06:00 AM', closeTime: '08:30 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Wednesday', short: 'Wed', isOpen: true, openTime: '06:00 AM', closeTime: '08:30 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Thursday', short: 'Thu', isOpen: true, openTime: '06:00 AM', closeTime: '08:30 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Friday', short: 'Fri', isOpen: true, openTime: '06:00 AM', closeTime: '08:30 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Saturday', short: 'Sat', isOpen: true, openTime: '06:00 AM', closeTime: '09:00 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Sunday', short: 'Sun', isOpen: true, openTime: '06:00 AM', closeTime: '08:30 PM' }
+        ],
+        holidays: ['26 Jan (Republic Day)', '15 Aug (Independence Day)']
+      });
+      this.fulfilment.set({
+        storePickup: true,
+        merchantDelivery: true,
+        serviceRadius: '6 km',
+        minOrderValue: 100,
+        prepTime: '15 minutes'
+      });
+      this.bankDetails.set({
+        accountHolderName: 'Vinod Patil',
+        accountNumber: '**********3341',
+        ifscCode: 'SBIN0000432',
+        bankName: 'State Bank of India'
+      });
+      this.applicationId.set('NN-MR-20261114-1101');
+      this.activePreviewStatus.set('approved');
+      this.loadRegistration('NN-MR-20261114-1101');
+    } else if (tenantId === 'merchant-kirana-002') {
+      this.selectedBusinessType.set('retail');
+      this.details.set({
+        businessName: 'Sharma Kirana & General Store',
+        ownerName: 'Rajesh Sharma',
+        mobileNumber: '+91 98765 43210',
+        email: 'rajesh@sharmakirana.com',
+        category: 'Grocery & Daily Needs',
+        description: 'A neighbourhood grocery store offering daily essentials, spices, pulses, rice, edible oils, dairy, household items and personal care products.'
+      });
+      this.location.set({
+        pincode: '442001',
+        state: 'Maharashtra',
+        district: 'Akola',
+        city: 'Akola',
+        locality: 'Civil Lines',
+        fullAddress: 'Shop No. 12, Main Market Road, Civil Lines, Akola, Maharashtra - 442001',
+        coordinates: { lat: 20.7002, lng: 77.0082 },
+        homeBusinessPrivacy: false
+      });
+      this.hours.set({
+        scheduleMode: 'weekly',
+        days: [
+          { day: 'Monday', short: 'Mon', isOpen: true, openTime: '09:00 AM', closeTime: '09:00 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Tuesday', short: 'Tue', isOpen: true, openTime: '09:00 AM', closeTime: '09:00 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Wednesday', short: 'Wed', isOpen: true, openTime: '09:00 AM', closeTime: '09:00 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Thursday', short: 'Thu', isOpen: true, openTime: '09:00 AM', closeTime: '09:00 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Friday', short: 'Fri', isOpen: true, openTime: '09:00 AM', closeTime: '09:00 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Saturday', short: 'Sat', isOpen: true, openTime: '09:00 AM', closeTime: '10:00 PM', breakTime: '01:00 - 02:00 PM' },
+          { day: 'Sunday', short: 'Sun', isOpen: false, openTime: '09:00 AM', closeTime: '09:00 PM' }
+        ],
+        holidays: ['26 Jan (Republic Day)', '15 Aug (Independence Day)', '02 Oct (Gandhi Jayanti)']
+      });
+      this.fulfilment.set({
+        storePickup: true,
+        merchantDelivery: true,
+        serviceRadius: '5 km',
+        minOrderValue: 300,
+        prepTime: '30 minutes'
+      });
+      this.bankDetails.set({
+        accountHolderName: 'Rajesh Sharma',
+        accountNumber: '**********9012',
+        ifscCode: 'HDFC0001234',
+        bankName: 'HDFC Bank'
+      });
+      this.applicationId.set('NN-MR-20261115-0387');
+      this.activePreviewStatus.set('approved');
+      this.loadRegistration('NN-MR-20261115-0387');
+    } else if (tenantId === 'merchant-garguti-003') {
+      this.selectedBusinessType.set('home');
+      this.details.set({
+        businessName: 'Garguti Homemade Chivda & Snacks',
+        ownerName: 'Sunita Kulkarni',
+        mobileNumber: '+91 98221 44556',
+        email: 'sunita.kulkarni@gargutichivda.in',
+        category: 'Home Bakery & Traditional Snacks',
+        description: 'Authentic homemade Vidarbha special spicy poha chivda, bakarwadi, cornflakes chivda, chakli, besan laddoo and traditional festive faral made with pure groundnut oil and family secret spices.'
+      });
+      this.location.set({
+        pincode: '442005',
+        state: 'Maharashtra',
+        district: 'Akola',
+        city: 'Akola',
+        locality: 'Ramdaspeth',
+        fullAddress: 'Flat 302, Radha Krishna Heights, Ramdaspeth, Akola, Maharashtra - 442005',
+        coordinates: { lat: 20.6975, lng: 77.0012 },
+        homeBusinessPrivacy: true // Protected address!
+      });
+      this.hours.set({
+        scheduleMode: 'weekly',
+        days: [
+          { day: 'Monday', short: 'Mon', isOpen: true, openTime: '10:00 AM', closeTime: '07:00 PM' },
+          { day: 'Tuesday', short: 'Tue', isOpen: true, openTime: '10:00 AM', closeTime: '07:00 PM' },
+          { day: 'Wednesday', short: 'Wed', isOpen: true, openTime: '10:00 AM', closeTime: '07:00 PM' },
+          { day: 'Thursday', short: 'Thu', isOpen: true, openTime: '10:00 AM', closeTime: '07:00 PM' },
+          { day: 'Friday', short: 'Fri', isOpen: true, openTime: '10:00 AM', closeTime: '07:00 PM' },
+          { day: 'Saturday', short: 'Sat', isOpen: true, openTime: '10:00 AM', closeTime: '07:00 PM' },
+          { day: 'Sunday', short: 'Sun', isOpen: true, openTime: '11:00 AM', closeTime: '04:00 PM' }
+        ],
+        holidays: []
+      });
+      this.fulfilment.set({
+        storePickup: true,
+        merchantDelivery: true,
+        serviceRadius: '10 km',
+        minOrderValue: 200,
+        prepTime: '45 minutes'
+      });
+      this.bankDetails.set({
+        accountHolderName: 'Sunita Kulkarni',
+        accountNumber: '**********6789',
+        ifscCode: 'MAHB0000123',
+        bankName: 'Bank of Maharashtra'
+      });
+      this.applicationId.set('NN-MR-20261116-2244');
+      this.activePreviewStatus.set('approved');
+      this.loadRegistration('NN-MR-20261116-2244');
+    } else if (tenantId === 'merchant-sweets-004') {
+      this.selectedBusinessType.set('retail');
+      this.details.set({
+        businessName: 'Mahalaxmi Sweets, Dairy & Bakery',
+        ownerName: 'Anand Joshi',
+        mobileNumber: '+91 98900 77889',
+        email: 'anand.joshi@mahalaxmisweets.com',
+        category: 'Dairy, Sweets & Bakery',
+        description: 'Renowned authentic Nagpur orange barfi, motichoor laddoo, fresh buffalo paneer, pure cow ghee, daily milk, hot jalebi and artisan sourdough breads.'
+      });
+      this.location.set({
+        pincode: '440010',
+        state: 'Maharashtra',
+        district: 'Nagpur',
+        city: 'Nagpur',
+        locality: 'Dharampeth',
+        fullAddress: 'Plot 18, West High Court Road, Dharampeth, Nagpur, Maharashtra - 440010',
+        coordinates: { lat: 21.1408, lng: 79.0620 },
+        homeBusinessPrivacy: false
+      });
+      this.hours.set({
+        scheduleMode: 'weekly',
+        days: [
+          { day: 'Monday', short: 'Mon', isOpen: true, openTime: '07:30 AM', closeTime: '10:30 PM' },
+          { day: 'Tuesday', short: 'Tue', isOpen: true, openTime: '07:30 AM', closeTime: '10:30 PM' },
+          { day: 'Wednesday', short: 'Wed', isOpen: true, openTime: '07:30 AM', closeTime: '10:30 PM' },
+          { day: 'Thursday', short: 'Thu', isOpen: true, openTime: '07:30 AM', closeTime: '10:30 PM' },
+          { day: 'Friday', short: 'Fri', isOpen: true, openTime: '07:30 AM', closeTime: '10:30 PM' },
+          { day: 'Saturday', short: 'Sat', isOpen: true, openTime: '07:30 AM', closeTime: '11:00 PM' },
+          { day: 'Sunday', short: 'Sun', isOpen: true, openTime: '07:30 AM', closeTime: '10:30 PM' }
+        ],
+        holidays: []
+      });
+      this.fulfilment.set({
+        storePickup: true,
+        merchantDelivery: true,
+        serviceRadius: '8 km',
+        minOrderValue: 250,
+        prepTime: '20 minutes'
+      });
+      this.bankDetails.set({
+        accountHolderName: 'Mahalaxmi Food LLP',
+        accountNumber: '**********5512',
+        ifscCode: 'UTIB0000045',
+        bankName: 'Axis Bank'
+      });
+      this.applicationId.set('NN-MR-20261117-4912');
+      this.activePreviewStatus.set('approved');
+      this.loadRegistration('NN-MR-20261117-4912');
+    }
+  }
+
+  /**
    * Dynamic DB status loader
    */
   loadRegistration(identifier: string): void {

@@ -538,10 +538,12 @@
                     </div>
 
                     <!-- Break Tag -->
-                    <div class="break-tag-pill" title="Click to adjust break time">
-                      <span class="coffee-icon">☕</span>
-                      <span>Break: {{ d.breakTime.replace('Break: ', '') }}</span>
-                    </div>
+                    @if (d.breakTime) {
+                      <div class="break-tag-pill" title="Click to adjust break time">
+                        <span class="coffee-icon">☕</span>
+                        <span>Break: {{ d.breakTime.replace('Break: ', '') }}</span>
+                      </div>
+                    }
 
                     <button type="button" class="more-options-btn" aria-label="More options">•••</button>
                   </div>

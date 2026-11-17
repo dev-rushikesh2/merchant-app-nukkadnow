@@ -33,7 +33,7 @@ export interface DaySchedule {
   isOpen: boolean;
   openTime: string;
   closeTime: string;
-  breakTime: string;
+  breakTime?: string;
 }
 
 export interface BusinessHoursConfig {
