@@ -10,6 +10,25 @@ export class CatalogueStore {
   readonly selectedCategory = signal<string>('All');
   readonly searchQuery = signal<string>('');
   readonly loading = signal<boolean>(false);
+  readonly currentOutletId = signal<string>('outlet-main');
+
+  constructor() {
+    this.loadProducts();
+  }
+
+  loadProducts(outletId = 'outlet-main') {
+    this.currentOutletId.set(outletId);
+    this.loading.set(true);
+    this.api.fetchProducts(outletId).subscribe({
+      next: (data) => {
+        if (data && data.length > 0) {
+          this.products.set(data);
+        }
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
+    });
+  }
 
   readonly categories = computed(() => {
     const set = new Set<string>();
@@ -53,6 +72,9 @@ export class CatalogueStore {
       }
       return [product, ...list];
     });
+
+    // Sync to backend catalog-service
+    this.api.createProduct(product).subscribe();
   }
 
   deleteProduct(id: string) {

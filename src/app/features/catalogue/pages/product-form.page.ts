@@ -1069,6 +1069,11 @@ export class ProductFormPageComponent implements OnInit {
       return;
     }
 
+    if (this.mrpPrice() > 0 && this.sellingPrice() > this.mrpPrice()) {
+      alert(`Pricing Violation: Selling price (₹${this.sellingPrice()}) cannot exceed printed MRP (₹${this.mrpPrice()}) under platform policy & Legal Metrology rules.`);
+      return;
+    }
+
     const prod: ProductItem = {
       id: this.productId() || `prod-${Date.now()}`,
       outletId: 'outlet-main',

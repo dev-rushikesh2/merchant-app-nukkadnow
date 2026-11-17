@@ -6,8 +6,8 @@
   "author": "dev-rushikesh2 <rushikeshkhawane@gmail.com>",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve --port 4200 --host 0.0.0.0",
-    "dev": "ng serve --port 4200 --host 0.0.0.0",
+    "start": "ng serve --port 4200 --host 0.0.0.0 --prebundle=false",
+    "dev": "ng serve --port 4200 --host 0.0.0.0 --prebundle=false",
     "build": "ng build",
     "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
