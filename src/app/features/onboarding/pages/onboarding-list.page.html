@@ -430,7 +430,10 @@
               <merchant-map-picker-preview
                 [shopName]="store.details().businessName || 'Sharma General Store'"
                 [locality]="store.location().locality || 'Civil Lines'"
-                [city]="store.location().city || 'Akola'">
+                [city]="store.location().city || 'Akola'"
+                [coordinates]="store.location().coordinates"
+                [homeBusinessPrivacy]="store.location().homeBusinessPrivacy"
+                (locationChange)="store.updateLocation({ coordinates: $event })">
               </merchant-map-picker-preview>
             </div>
 

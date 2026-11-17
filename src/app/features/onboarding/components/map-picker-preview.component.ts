@@ -1,105 +1,87 @@
-import { Component, ChangeDetectionStrategy, input, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  output,
+  signal,
+  effect,
+  viewChild,
+  ElementRef,
+  AfterViewInit,
+  OnDestroy,
+  PLATFORM_ID,
+  inject
+} from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import * as L from 'leaflet';
 
 @Component({
   selector: 'merchant-map-picker-preview',
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="map-container" role="region" aria-label="Store Location Map">
-      <!-- Stylized Vector Map Graphics -->
-      <svg class="map-svg-canvas" viewBox="0 0 600 320" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="mapBg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#EBF4F6" />
-            <stop offset="100%" stop-color="#E2EEF0" />
-          </linearGradient>
-          <linearGradient id="roadYellow" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#FDE68A" />
-            <stop offset="100%" stop-color="#FCD34D" />
-          </linearGradient>
-          <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
-            <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12" />
-          </filter>
-        </defs>
+    <div class="map-wrapper" role="region" aria-label="Interactive Store Location Map">
+      <!-- Leaflet Map Container -->
+      <div #mapContainer class="leaflet-map-host"></div>
 
-        <!-- Base Land -->
-        <rect width="600" height="320" fill="url(#mapBg)" />
-
-        <!-- Green Park Polygons -->
-        <path d="M 40 20 L 140 30 L 160 110 L 60 120 Z" fill="#DCFCE7" opacity="0.8" />
-        <path d="M 420 180 L 560 190 L 580 290 L 440 280 Z" fill="#DCFCE7" opacity="0.8" />
-        <path d="M 380 40 L 490 20 L 520 90 L 400 100 Z" fill="#E2E8F0" opacity="0.6" />
-
-        <!-- Minor Street Grid -->
-        <path d="M 0 80 Q 200 90 600 70" stroke="#FFFFFF" stroke-width="6" fill="none" />
-        <path d="M 0 160 Q 300 170 600 140" stroke="#FFFFFF" stroke-width="7" fill="none" />
-        <path d="M 0 240 Q 250 230 600 250" stroke="#FFFFFF" stroke-width="6" fill="none" />
-
-        <path d="M 120 0 L 140 320" stroke="#FFFFFF" stroke-width="6" fill="none" />
-        <path d="M 460 0 L 440 320" stroke="#FFFFFF" stroke-width="6" fill="none" />
-        <path d="M 230 0 L 250 320" stroke="#FFFFFF" stroke-width="5" fill="none" />
-
-        <!-- Main Arterial Diagonal Road (Yellow) -->
-        <path d="M 0 280 Q 200 200 400 100 T 600 20" stroke="url(#roadYellow)" stroke-width="14" fill="none" stroke-linecap="round" />
-        <path d="M 0 280 Q 200 200 400 100 T 600 20" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="6,6" fill="none" />
-
-        <!-- Secondary White Avenue Crossing through shop -->
-        <path d="M 100 320 L 300 0" stroke="#FFFFFF" stroke-width="12" fill="none" />
-
-        <!-- Building blocks -->
-        <rect x="230" y="80" width="35" height="45" rx="3" fill="#CBD5E1" opacity="0.7" />
-        <rect x="280" y="70" width="40" height="35" rx="3" fill="#CBD5E1" opacity="0.7" />
-        <rect x="330" y="190" width="50" height="40" rx="3" fill="#CBD5E1" opacity="0.7" />
-        <rect x="230" y="210" width="45" height="45" rx="3" fill="#CBD5E1" opacity="0.7" />
-      </svg>
-
-      <!-- Center Pin Target with Animated Beacon -->
-      <div class="pin-anchor">
-        <div class="beacon-pulse" [class.locating]="isLocating()"></div>
-        <div class="pin-marker">
-          <!-- 3D Red Map Pin SVG -->
-          <svg width="34" height="42" viewBox="0 0 34 42" fill="none">
-            <path d="M17 0C7.61 0 0 7.61 0 17C0 27.25 14.54 40.71 16.32 41.67C16.74 41.89 17.26 41.89 17.68 41.67C19.46 40.71 34 27.25 34 17C34 7.61 26.39 0 17 0Z" fill="#EF4444" />
-            <circle cx="17" cy="15" r="7" fill="#B91C1C" />
-            <circle cx="17" cy="15" r="5" fill="#FFFFFF" />
+      <!-- Floating Controls Top-Right -->
+      <div class="map-overlay-controls">
+        <button
+          type="button"
+          class="map-control-btn gps-btn"
+          (click)="triggerLocate()"
+          [title]="'Detect GPS Location'"
+          aria-label="Detect current GPS location">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#0F172A"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            [class.spin]="isLocating()">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="22" y1="12" x2="18" y2="12"></line>
+            <line x1="6" y1="12" x2="2" y2="12"></line>
+            <line x1="12" y1="6" x2="12" y2="2"></line>
+            <line x1="12" y1="22" x2="12" y2="18"></line>
           </svg>
-        </div>
+        </button>
 
-        <!-- Floating Store Location Tooltip Card -->
-        <div class="store-location-card">
-          <div class="card-awning-icon">
-            <svg width="24" height="20" viewBox="0 0 40 32" fill="none">
-              <path d="M4 14L8 4H32L36 14H4Z" fill="#FF5A1F" />
-              <path d="M4 14C4 16.2 5.8 18 8 18C10.2 18 12 16.2 12 14C12 16.2 13.8 18 16 18C18.2 18 20 16.2 20 14C20 16.2 21.8 18 24 18C26.2 18 28 16.2 28 14C28 16.2 29.8 18 32 18C34.2 18 36 16.2 36 14H4Z" fill="#EA580C" />
-              <rect x="7" y="18" width="26" height="12" rx="2" fill="#0284C7" />
-            </svg>
-          </div>
-          <div class="card-text-col">
-            <span class="card-shop-name">{{ shopName() }}</span>
-            <span class="card-shop-sub">{{ locality() }}, {{ city() }}</span>
-          </div>
+        <div class="zoom-btn-group">
+          <button type="button" class="map-control-btn" (click)="zoomIn()" title="Zoom In" aria-label="Zoom in">+</button>
+          <button type="button" class="map-control-btn" (click)="zoomOut()" title="Zoom Out" aria-label="Zoom out">−</button>
         </div>
       </div>
 
-      <!-- Recenter / GPS Button -->
-      <button
-        type="button"
-        class="recenter-btn"
-        (click)="triggerLocate()"
-        [title]="'Recenter location'"
-        aria-label="Detect current location">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" [class.spin]="isLocating()">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="22" y1="12" x2="18" y2="12"></line>
-          <line x1="6" y1="12" x2="2" y2="12"></line>
-          <line x1="12" y1="6" x2="12" y2="2"></line>
-          <line x1="12" y1="22" x2="12" y2="18"></line>
-        </svg>
-      </button>
+      <!-- Bottom Coordinate / Mode Status Strip -->
+      <div class="map-bottom-strip" [class.privacy-active]="homeBusinessPrivacy()">
+        @if (homeBusinessPrivacy()) {
+          <div class="strip-privacy-indicator">
+            <span class="shield-icon">🛡️</span>
+            <div class="strip-text">
+              <span class="badge-title">Home Privacy Mode Active</span>
+              <span class="badge-sub">Customers only see approximate ~500m zone. Exact address hidden.</span>
+            </div>
+          </div>
+        } @else {
+          <div class="strip-coords-indicator">
+            <span class="pin-icon">📍</span>
+            <div class="strip-text">
+              <span class="badge-title">{{ shopName() }}</span>
+              <span class="badge-sub">{{ currentLat().toFixed(4) }}° N, {{ currentLng().toFixed(4) }}° E (Drag pin to fine-tune)</span>
+            </div>
+          </div>
+        }
+      </div>
 
+      <!-- Toast Feedback -->
       @if (locateToast()) {
-        <div class="locate-toast">📍 GPS location updated</div>
+        <div class="locate-toast" role="status">
+          {{ locateToast() }}
+        </div>
       }
     </div>
   `,
@@ -109,126 +91,49 @@ import { CommonModule } from '@angular/common';
       width: 100%;
     }
 
-    .map-container {
+    .map-wrapper {
       width: 100%;
-      height: 200px;
+      height: 260px;
       border-radius: 16px;
       overflow: hidden;
       position: relative;
       border: 1px solid #E2E8F0;
-      background: #EBF4F6;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      background: #E2E8F0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     }
 
-    .map-svg-canvas {
+    .leaflet-map-host {
       width: 100%;
       height: 100%;
-      display: block;
+      z-index: 1;
     }
 
-    .pin-anchor {
+    /* Floating map controls */
+    .map-overlay-controls {
       position: absolute;
-      left: 50%;
-      top: 36%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      pointer-events: none;
-    }
-
-    .beacon-pulse {
-      position: absolute;
-      top: 30px;
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: rgba(34, 197, 94, 0.35);
-      animation: pulseRings 2s infinite ease-out;
-
-      &.locating {
-        animation-duration: 0.8s;
-        background: rgba(59, 130, 246, 0.4);
-      }
-    }
-
-    @keyframes pulseRings {
-      0% {
-        transform: scale(0.4);
-        opacity: 0.9;
-      }
-      100% {
-        transform: scale(2.4);
-        opacity: 0;
-      }
-    }
-
-    .pin-marker {
-      position: relative;
-      z-index: 2;
-      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
-      animation: pinBounce 0.4s ease-out;
-    }
-
-    @keyframes pinBounce {
-      0% { transform: translateY(-16px); }
-      100% { transform: translateY(0); }
-    }
-
-    .store-location-card {
-      margin-top: 6px;
-      background: #FFFFFF;
-      padding: 6px 12px;
-      border-radius: 12px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-      border: 1px solid #E2E8F0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
-      z-index: 3;
-    }
-
-    .card-awning-icon {
-      display: flex;
-      align-items: center;
-    }
-
-    .card-text-col {
-      display: flex;
-      flex-direction: column;
-      text-align: left;
-    }
-
-    .card-shop-name {
-      font-size: 13px;
-      font-weight: 700;
-      color: #0F172A;
-      line-height: 1.2;
-    }
-
-    .card-shop-sub {
-      font-size: 10.5px;
-      color: #64748B;
-      font-weight: 500;
-    }
-
-    .recenter-btn {
-      position: absolute;
+      top: 12px;
       right: 12px;
-      bottom: 12px;
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 400;
+    }
+
+    .map-control-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
       background: #FFFFFF;
-      border: 1px solid #E2E8F0;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      border: 1px solid #CBD5E1;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      font-size: 18px;
+      font-weight: 700;
+      color: #1E293B;
       transition: all 0.15s ease;
-      z-index: 5;
 
       &:hover {
         background: #F8FAFC;
@@ -236,6 +141,23 @@ import { CommonModule } from '@angular/common';
       }
       &:active {
         transform: scale(0.95);
+      }
+    }
+
+    .zoom-btn-group {
+      display: flex;
+      flex-direction: column;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+
+      .map-control-btn {
+        border-radius: 0;
+        box-shadow: none;
+
+        &:first-child {
+          border-bottom: 1px solid #E2E8F0;
+        }
       }
     }
 
@@ -248,43 +170,397 @@ import { CommonModule } from '@angular/common';
       to { transform: rotate(360deg); }
     }
 
-    .locate-toast {
+    /* Bottom strip */
+    .map-bottom-strip {
       position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.88);
-      color: #FFFFFF;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      backdrop-filter: blur(4px);
-      z-index: 10;
-      animation: fadeIn 0.2s ease;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      padding: 8px 14px;
+      border-top: 1px solid rgba(226, 232, 240, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 400;
+      transition: background 0.2s ease;
+
+      &.privacy-active {
+        background: rgba(255, 247, 237, 0.96);
+        border-top-color: #FDBA74;
+      }
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translate(-50%, -6px); }
+    .strip-coords-indicator,
+    .strip-privacy-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pin-icon, .shield-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .strip-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .badge-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0F172A;
+      line-height: 1.2;
+    }
+
+    .badge-sub {
+      font-size: 11px;
+      color: #64748B;
+      font-weight: 500;
+    }
+
+    .strip-privacy-indicator {
+      .badge-title {
+        color: #C2410C;
+      }
+      .badge-sub {
+        color: #EA580C;
+      }
+    }
+
+    .locate-toast {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      color: #FFFFFF;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      backdrop-filter: blur(6px);
+      z-index: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      animation: fadeInToast 0.25s ease;
+    }
+
+    @keyframes fadeInToast {
+      from { opacity: 0; transform: translate(-50%, -8px); }
       to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    /* Custom Leaflet Marker Styling injected into DOM */
+    ::ng-deep {
+      .nn-leaflet-marker {
+        background: transparent;
+        border: none;
+      }
+
+      .nn-pin-bubble {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform: translate(-50%, -100%);
+      }
+
+      .nn-pin-head {
+        background: #EA580C;
+        color: #FFFFFF;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+        box-shadow: 0 3px 10px rgba(234, 88, 12, 0.4);
+        border: 2px solid #FFFFFF;
+        transition: transform 0.15s ease;
+
+        &:hover {
+          transform: scale(1.08);
+        }
+      }
+
+      .nn-pin-point {
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #EA580C;
+        margin-top: -1px;
+      }
+
+      .nn-pin-pulse {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(234, 88, 12, 0.35);
+        animation: pinRadar 1.8s infinite ease-out;
+        margin-top: -6px;
+      }
+
+      .nn-privacy-center-tag {
+        transform: translate(-50%, -50%);
+        background: #C2410C;
+        color: #FFFFFF;
+        padding: 4px 10px;
+        border-radius: 14px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        border: 2px solid #FFFFFF;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      @keyframes pinRadar {
+        0% { transform: scale(0.6); opacity: 0.9; }
+        100% { transform: scale(2.6); opacity: 0; }
+      }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MapPickerPreviewComponent {
+export class MapPickerPreviewComponent implements AfterViewInit, OnDestroy {
+  private readonly platformId = inject(PLATFORM_ID);
+  readonly mapContainerRef = viewChild<ElementRef<HTMLDivElement>>('mapContainer');
+
+  // Inputs
   shopName = input<string>('Sharma General Store');
   locality = input<string>('Civil Lines');
   city = input<string>('Akola');
+  coordinates = input<{ lat: number; lng: number }>({ lat: 20.7002, lng: 77.0082 });
+  homeBusinessPrivacy = input<boolean>(false);
 
+  // Outputs
+  locationChange = output<{ lat: number; lng: number }>();
+
+  // Internal reactive state
+  readonly currentLat = signal<number>(20.7002);
+  readonly currentLng = signal<number>(77.0082);
   readonly isLocating = signal<boolean>(false);
-  readonly locateToast = signal<boolean>(false);
+  readonly locateToast = signal<string | null>(null);
+
+  private map?: L.Map;
+  private marker?: L.Marker;
+  private privacyCircle?: L.Circle;
+
+  constructor() {
+    // Keep internal signals in sync when coordinates input changes
+    effect(() => {
+      const coords = this.coordinates();
+      if (coords && (coords.lat !== this.currentLat() || coords.lng !== this.currentLng())) {
+        this.currentLat.set(coords.lat);
+        this.currentLng.set(coords.lng);
+        this.updateMapPosition(coords.lat, coords.lng, false);
+      }
+    });
+
+    // Update privacy circle when toggle state changes
+    effect(() => {
+      const isPrivacy = this.homeBusinessPrivacy();
+      this.refreshPrivacyLayer(isPrivacy);
+    });
+  }
+
+  ngAfterViewInit(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    const el = this.mapContainerRef()?.nativeElement;
+    if (!el) return;
+
+    const initialLat = this.coordinates()?.lat ?? 20.7002;
+    const initialLng = this.coordinates()?.lng ?? 77.0082;
+    this.currentLat.set(initialLat);
+    this.currentLng.set(initialLng);
+
+    // Initialize Leaflet Map
+    this.map = L.map(el, {
+      center: [initialLat, initialLng],
+      zoom: 15,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    // Add OpenStreetMap raster tile layer
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(this.map);
+
+    // Minimal attribution control bottom-right
+    L.control.attribution({ position: 'bottomright', prefix: 'OSM' }).addTo(this.map);
+
+    // Create marker
+    this.createOrUpdateMarker(initialLat, initialLng);
+
+    // Map click moves the pin
+    this.map.on('click', (e: L.LeafletMouseEvent) => {
+      this.onPinMoved(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Invalidate size to ensure clean tile rendering inside Angular layout
+    setTimeout(() => {
+      this.map?.invalidateSize();
+    }, 250);
+  }
+
+  ngOnDestroy(): void {
+    if (this.map) {
+      this.map.remove();
+      this.map = undefined;
+    }
+  }
+
+  zoomIn(): void {
+    this.map?.zoomIn();
+  }
+
+  zoomOut(): void {
+    this.map?.zoomOut();
+  }
 
   triggerLocate(): void {
+    if (!navigator.geolocation) {
+      this.showToast('Geolocation is not supported by your browser');
+      return;
+    }
+
     this.isLocating.set(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        this.isLocating.set(false);
+        this.onPinMoved(lat, lng);
+        this.map?.flyTo([lat, lng], 16, { duration: 1.2 });
+        this.showToast(`GPS Location set (±${Math.round(pos.coords.accuracy)}m)`);
+      },
+      (err) => {
+        this.isLocating.set(false);
+        this.showToast('Could not access GPS. Please pin manually on map.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }
+
+  private onPinMoved(lat: number, lng: number): void {
+    this.currentLat.set(lat);
+    this.currentLng.set(lng);
+    this.updateMapPosition(lat, lng, true);
+    this.locationChange.emit({ lat, lng });
+  }
+
+  private updateMapPosition(lat: number, lng: number, pan: boolean): void {
+    if (!this.map) return;
+
+    if (pan) {
+      this.map.panTo([lat, lng]);
+    }
+
+    if (this.marker) {
+      this.marker.setLatLng([lat, lng]);
+    } else {
+      this.createOrUpdateMarker(lat, lng);
+    }
+
+    if (this.privacyCircle) {
+      this.privacyCircle.setLatLng([lat, lng]);
+    }
+  }
+
+  private createOrUpdateMarker(lat: number, lng: number): void {
+    if (!this.map) return;
+
+    if (this.marker) {
+      this.marker.setLatLng([lat, lng]);
+      return;
+    }
+
+    const isPrivacy = this.homeBusinessPrivacy();
+    const customIcon = this.createMarkerIcon(isPrivacy);
+
+    this.marker = L.marker([lat, lng], {
+      icon: customIcon,
+      draggable: true
+    }).addTo(this.map);
+
+    this.marker.on('dragend', () => {
+      const pos = this.marker?.getLatLng();
+      if (pos) {
+        this.onPinMoved(pos.lat, pos.lng);
+      }
+    });
+
+    this.refreshPrivacyLayer(isPrivacy);
+  }
+
+  private refreshPrivacyLayer(isPrivacy: boolean): void {
+    if (!this.map) return;
+
+    const lat = this.currentLat();
+    const lng = this.currentLng();
+
+    if (isPrivacy) {
+      // Create 500m circle if not already present
+      if (!this.privacyCircle) {
+        this.privacyCircle = L.circle([lat, lng], {
+          radius: 500,
+          color: '#EA580C',
+          weight: 2,
+          dashArray: '6, 6',
+          fillColor: '#FDBA74',
+          fillOpacity: 0.28
+        }).addTo(this.map);
+      } else {
+        this.privacyCircle.setLatLng([lat, lng]);
+        this.privacyCircle.addTo(this.map);
+      }
+    } else {
+      if (this.privacyCircle && this.map.hasLayer(this.privacyCircle)) {
+        this.map.removeLayer(this.privacyCircle);
+      }
+    }
+
+    // Update marker icon
+    if (this.marker) {
+      this.marker.setIcon(this.createMarkerIcon(isPrivacy));
+    }
+  }
+
+  private createMarkerIcon(isPrivacy: boolean): L.DivIcon {
+    const title = isPrivacy ? '🛡️ Approximate Zone' : `🏪 ${this.shopName()}`;
+    const html = isPrivacy
+      ? `<div class="nn-privacy-center-tag"><span>${title}</span></div>`
+      : `<div class="nn-pin-bubble">
+           <div class="nn-pin-head"><span>${title}</span></div>
+           <div class="nn-pin-point"></div>
+           <div class="nn-pin-pulse"></div>
+         </div>`;
+
+    return L.divIcon({
+      className: 'nn-leaflet-marker',
+      html,
+      iconSize: [0, 0],
+      iconAnchor: [0, isPrivacy ? 0 : 20]
+    });
+  }
+
+  private showToast(msg: string): void {
+    this.locateToast.set(msg);
     setTimeout(() => {
-      this.isLocating.set(false);
-      this.locateToast.set(true);
-      setTimeout(() => this.locateToast.set(false), 2400);
-    }, 600);
+      if (this.locateToast() === msg) {
+        this.locateToast.set(null);
+      }
+    }, 3200);
   }
 }
