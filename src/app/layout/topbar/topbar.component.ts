@@ -52,29 +52,6 @@ import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
       </div>
 
       <div class="right-section">
-        <!-- Live Shop Status Control -->
-        <div class="status-control">
-          <button
-            type="button"
-            class="status-pill"
-            [class.status-pill--open]="outletStore.currentStatus() === 'OPEN'"
-            [class.status-pill--paused]="outletStore.currentStatus() === 'PAUSED'"
-            [class.status-pill--closed]="outletStore.currentStatus() === 'CLOSED'"
-            (click)="isStatusModalOpen.set(true)">
-            <span class="status-dot"></span>
-            <span class="status-label">
-              @switch (outletStore.currentStatus()) {
-                @case ('OPEN') { Shop Live }
-                @case ('PAUSED') { Busy ({{ outletStore.activeOutlet().pauseRemainingMinutes || 45 }}m) }
-                @case ('CLOSED') { Offline }
-              }
-            </span>
-            <svg viewBox="0 0 24 24" class="caret-svg" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-        </div>
-
         <!-- Notification Bell with red dot -->
         <a routerLink="/notifications" class="icon-action-btn" aria-label="Notifications">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

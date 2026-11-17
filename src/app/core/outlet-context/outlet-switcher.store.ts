@@ -68,6 +68,15 @@ export class OutletSwitcherStore {
     this.activeOutletId.set(id);
   }
 
+  toggleStatus() {
+    const next: Record<ShopLiveStatus, ShopLiveStatus> = {
+      OPEN: 'PAUSED',
+      PAUSED: 'CLOSED',
+      CLOSED: 'OPEN'
+    };
+    this.setShopStatus(next[this.currentStatus()]);
+  }
+
   setShopStatus(status: ShopLiveStatus, pauseMinutes?: number) {
     this.outlets.update((list) =>
       list.map((o) => {

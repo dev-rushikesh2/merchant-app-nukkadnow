@@ -10,13 +10,25 @@
         <p class="greeting-sub">Here's your business overview for today</p>
       </div>
 
-      <div class="live-status-pill-badge">
+      <button
+        type="button"
+        class="live-status-pill-badge"
+        [class.live-status-pill-badge--paused]="outletStore.currentStatus() === 'PAUSED'"
+        [class.live-status-pill-badge--closed]="outletStore.currentStatus() === 'CLOSED'"
+        (click)="outletStore.toggleStatus()"
+        title="Toggle Store Status (Open / Busy / Offline)">
         <span class="status-live-dot"></span>
-        <span class="live-label">Shop Live</span>
+        <span class="live-label">
+          @switch (outletStore.currentStatus()) {
+            @case ('OPEN') { Shop Live }
+            @case ('PAUSED') { Busy }
+            @case ('CLOSED') { Offline }
+          }
+        </span>
         <svg viewBox="0 0 24 24" class="caret-svg" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
-      </div>
+      </button>
     </header>
 
     <!-- 4 Quick Actions Grid -->

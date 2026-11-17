@@ -2,6 +2,7 @@ import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MerchantShellComponent } from '../../../layout/merchant-shell/merchant-shell.component';
+import { OutletSwitcherStore } from '../../../core/outlet-context/outlet-switcher.store';
 
 export interface DashboardMetric {
   label: string;
@@ -28,6 +29,7 @@ export interface RecentOrderSummary {
 })
 export class DashboardListPageComponent {
   private router = inject(Router);
+  readonly outletStore = inject(OutletSwitcherStore);
 
   // Shop Info
   readonly shopName = signal<string>('Shree Fresh Mart');
