@@ -14,6 +14,35 @@ The standalone web and mobile merchant management application for NukkadNow quic
 - **Delivery & Staff Management**: Self-delivery radius slider, serviceable pincodes, 4-digit staff PIN switcher, and role permissions.
 - **Business Analytics & Settings**: GMV revenue trend chart, sales channel distribution, sound alerts, and store profile.
 
+---
+
+## 📋 Comprehensive Changelog & Architectural Log
+
+### [Release: 2026-11-18] — Dynamic POS Billing, OpenStreetMap Leaflet Geofencing & Audio Chime Alerts
+
+#### 1. Delivery & Fleet Management with Real OpenStreetMap Leaflet Map (`/delivery-settings`)
+- **Interactive Leaflet Map Integration:** Replaced static vector diagram with live OpenStreetMap tiles centered dynamically on the active merchant's coordinates (`Nagpur Sitabuldi`, `Nagpur Dharampeth`, `Akola Civil Lines`, `Akola Ramdaspeth`).
+- **Dynamic Store Marker Beacon:** Animated store pin featuring the merchant's avatar icon, store name, and full street address popup.
+- **Reactive Geofence Radius Circle:** Dynamic `L.circle` that expands/contracts smoothly in real time as the merchant adjusts the radius slider ($1.0\text{ to }15.0\text{ km}$) or taps quick preset buttons ($2, 3, 5, 6, 8, 10, 15\text{ km}$).
+- **Coverage Area Calculation:** Computes total coverage surface in square kilometers ($\text{km}^2 = \pi r^2$) dynamically.
+- **Fullscreen Interactive Map View:** Added fullscreen mode toggle (`⛶ Fullscreen`) with floating controls, auto-reflow (`map.invalidateSize()`), store re-centering button (`🎯 Re-center`), and floating radius selector.
+- **In-Store Rider Fleet:** Roster for managing personal store riders (name, phone, two-wheeler registration).
+
+#### 2. Walk-in Order & Counter POS Billing (`/walkin-orders`)
+- **Backend API Integration:** Connected directly to `CatalogueApi.fetchProducts()` with tenant-scoped outlet resolution.
+- **Category Filter Pills:** Dynamic category pills (`All`, `Beverages`, `Snacks`, `Dairy`, `Grocery`, etc.) derived from real catalogue items.
+- **Fast-Touch Item Addition:** Instant addition to ticket with stock status checks and item counter.
+- **Discount & Tax Computation:** Quick discount selectors ($0\%, 5\%, 10\%, 15\%$), automated $5\%$ GST calculation, subtotal, and grand total.
+- **Multi-Mode Payment & Token Creation:** Support for `UPI`, `Cash`, `Card`, and `Udhaar (Due)` payments with thermal receipt preview and direct KDS kitchen dispatch.
+- **Empty States:** Enhanced empty state distinguishing between active search query non-matches and empty category collections.
+
+#### 3. Notifications, Audio Chimes & Pilot UAT (`/notifications`)
+- **Realtime WebSocket Monitor:** Visual indicator displaying live WebSocket connection state with offline queue fallback.
+- **Web Audio API Dual-Chime Synthesizer:** Built-in synthesizer generating dual-frequency order alert chimes ($800\text{ Hz} / 1200\text{ Hz}$) audible across noisy bazaar counters without MP3 dependencies.
+- **Background Push Alerts:** Notification preference switch for background alert reception.
+- **Nagpur Pilot Launch UAT Sign-Off:** 6-point checklist verifying device accessibility (4GB Android), offline transaction safety, address masking, and ESC/POS thermal printing.
+
+
 ## 🛠️ Development Setup
 
 ```bash
