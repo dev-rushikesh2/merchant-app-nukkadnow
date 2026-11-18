@@ -4,7 +4,10 @@
     <div class="header-content">
       <div class="badge-row">
         <span class="badge badge-accent">SaaS Platform Plans</span>
-        <span class="badge badge-success">Active Subscription</span>
+        <span class="badge badge-success">
+          <span class="status-dot"></span>
+          Active Subscription
+        </span>
       </div>
       <h1>Subscription Plans & Quota Limits</h1>
       <p class="subtitle">
@@ -14,7 +17,10 @@
   </header>
 
   @if (store.upgradeSuccess(); as msg) {
-    <div class="alert-success">{{ msg }}</div>
+    <div class="alert-success">
+      <span class="alert-icon">✓</span>
+      <span>{{ msg }}</span>
+    </div>
   }
 
   @if (store.subscription().isInGracePeriod) {
@@ -28,77 +34,192 @@
     </div>
   }
 
-  <!-- Current Plan & Quota Usage Meters -->
-  <section class="quota-container">
-    <div class="quota-head">
-      <div>
-        <span class="quota-badge">CURRENT PLAN: {{ store.subscription().currentTier.replace('_', ' ') }}</span>
-        <h2 class="quota-title">{{ formatPrice(store.subscription().pricePaise) }}</h2>
-        <span class="quota-sub">Next renewal on {{ store.subscription().nextRenewalDate }}</span>
+  <!-- Current Plan & Quota Usage Cockpit -->
+  <section class="current-plan-cockpit">
+    <div class="cockpit-header">
+      <div class="plan-summary">
+        <div class="plan-badge-row">
+          <span class="current-plan-badge">
+            <span class="dot-pulse"></span>
+            CURRENT PLAN: {{ store.subscription().currentTier.replace('_', ' ') }}
+          </span>
+          <span class="billing-tag">Auto-Renew Enabled</span>
+        </div>
+        <div class="price-row">
+          <h2 class="current-price">{{ formatPrice(store.subscription().pricePaise) }}</h2>
+          <span class="renewal-notice">Next auto-renewal on <strong>{{ store.subscription().nextRenewalDate }}</strong></span>
+        </div>
       </div>
-      <div class="quota-meters-grid">
+    </div>
+
+    <!-- Resource Quotas Grid -->
+    <div class="quotas-section">
+      <h3 class="quotas-heading">Resource & Quota Allocations</h3>
+      <div class="quotas-grid">
         <!-- Outlets -->
         <div class="meter-card">
-          <div class="meter-labels">
-            <span>Outlets: <strong>{{ store.subscription().quotas.outletsUsed }} / {{ store.subscription().quotas.outletsLimit }}</strong></span>
-            <span>{{ getMeterPercent(store.subscription().quotas.outletsUsed, store.subscription().quotas.outletsLimit) }}%</span>
+          <div class="meter-top">
+            <div class="meter-icon-label">
+              <span class="meter-icon">🏪</span>
+              <span class="meter-name">Outlets & Branches</span>
+            </div>
+            <span class="meter-fraction">
+              <strong>{{ store.subscription().quotas.outletsUsed }}</strong> / {{ store.subscription().quotas.outletsLimit }}
+            </span>
           </div>
-          <div class="meter-bar">
-            <div class="meter-fill" [style.width.%]="getMeterPercent(store.subscription().quotas.outletsUsed, store.subscription().quotas.outletsLimit)"></div>
+          <div class="meter-bar-track">
+            <div 
+              class="meter-bar-fill" 
+              [style.width.%]="getMeterPercent(store.subscription().quotas.outletsUsed, store.subscription().quotas.outletsLimit)">
+            </div>
+          </div>
+          <div class="meter-bottom">
+            <span class="meter-status">
+              {{ store.subscription().quotas.outletsUsed >= store.subscription().quotas.outletsLimit ? 'At limit' : 'Available' }}
+            </span>
+            <span class="meter-percent">
+              {{ getMeterPercent(store.subscription().quotas.outletsUsed, store.subscription().quotas.outletsLimit) }}%
+            </span>
           </div>
         </div>
 
-        <!-- Staff -->
+        <!-- Staff Logins -->
         <div class="meter-card">
-          <div class="meter-labels">
-            <span>Staff Accounts: <strong>{{ store.subscription().quotas.staffUsed }} / {{ store.subscription().quotas.staffLimit }}</strong></span>
-            <span>{{ getMeterPercent(store.subscription().quotas.staffUsed, store.subscription().quotas.staffLimit) }}%</span>
+          <div class="meter-top">
+            <div class="meter-icon-label">
+              <span class="meter-icon">👥</span>
+              <span class="meter-name">Staff Accounts</span>
+            </div>
+            <span class="meter-fraction">
+              <strong>{{ store.subscription().quotas.staffUsed }}</strong> / {{ store.subscription().quotas.staffLimit >= 9999 ? '∞' : store.subscription().quotas.staffLimit }}
+            </span>
           </div>
-          <div class="meter-bar">
-            <div class="meter-fill" [style.width.%]="getMeterPercent(store.subscription().quotas.staffUsed, store.subscription().quotas.staffLimit)"></div>
+          <div class="meter-bar-track">
+            <div 
+              class="meter-bar-fill" 
+              [style.width.%]="getMeterPercent(store.subscription().quotas.staffUsed, store.subscription().quotas.staffLimit)">
+            </div>
+          </div>
+          <div class="meter-bottom">
+            <span class="meter-status">
+              {{ (store.subscription().quotas.staffLimit - store.subscription().quotas.staffUsed) }} seats open
+            </span>
+            <span class="meter-percent">
+              {{ getMeterPercent(store.subscription().quotas.staffUsed, store.subscription().quotas.staffLimit) }}%
+            </span>
           </div>
         </div>
 
-        <!-- Products -->
+        <!-- Catalogue Products -->
         <div class="meter-card">
-          <div class="meter-labels">
-            <span>Catalogue Items: <strong>{{ store.subscription().quotas.productsUsed }} / {{ store.subscription().quotas.productsLimit >= 9999 ? 'Unlimited' : store.subscription().quotas.productsLimit }}</strong></span>
-            <span>Active</span>
+          <div class="meter-top">
+            <div class="meter-icon-label">
+              <span class="meter-icon">📦</span>
+              <span class="meter-name">Catalogue Items</span>
+            </div>
+            <span class="meter-fraction">
+              <strong>{{ store.subscription().quotas.productsUsed }}</strong> / {{ store.subscription().quotas.productsLimit >= 9999 ? 'Unlimited' : store.subscription().quotas.productsLimit }}
+            </span>
           </div>
-          <div class="meter-bar">
-            <div class="meter-fill" style="width: 38%;"></div>
+          <div class="meter-bar-track">
+            <div 
+              class="meter-bar-fill emerald" 
+              [style.width.%]="store.subscription().quotas.productsLimit >= 9999 ? 100 : getMeterPercent(store.subscription().quotas.productsUsed, store.subscription().quotas.productsLimit)">
+            </div>
+          </div>
+          <div class="meter-bottom">
+            <span class="meter-status text-emerald">
+              {{ store.subscription().quotas.productsLimit >= 9999 ? 'Unlimited active' : 'Capped' }}
+            </span>
+            <span class="meter-percent text-emerald">Active</span>
           </div>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- Cycle Switcher -->
+  <div class="plans-control-header">
+    <div class="plans-title-col">
+      <h2 class="section-title">Select a Plan That Fits Your Scale</h2>
+      <p class="section-desc">Zero commissions on orders. Keep 100% of your earnings.</p>
+    </div>
+
+    <div class="cycle-toggle-group">
+      <button 
+        type="button" 
+        class="cycle-btn" 
+        [class.active]="billingCycle() === 'MONTHLY'"
+        (click)="setBillingCycle('MONTHLY')">
+        Monthly
+      </button>
+      <button 
+        type="button" 
+        class="cycle-btn" 
+        [class.active]="billingCycle() === 'ANNUAL'"
+        (click)="setBillingCycle('ANNUAL')">
+        Annual
+        <span class="save-tag">SAVE 20%</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Plans Grid -->
   <div class="plans-grid">
     <!-- Starter Tier -->
     <div class="plan-card" [class.is-current]="store.subscription().currentTier === 'STARTER'">
-      <div class="plan-top">
-        <span class="plan-name">Starter Pilot</span>
-        <span class="plan-price">₹0 <span>/ month</span></span>
-        <span class="plan-desc">For home sellers, seasonal makers, and small single stalls.</span>
+      <div class="plan-header-box">
+        <div class="plan-type-badge">STARTER</div>
+        <h3 class="plan-name">Starter Pilot</h3>
+        <p class="plan-desc">For home sellers, seasonal makers, and single counter stalls starting their digital journey.</p>
+        <div class="price-box">
+          <span class="plan-price">{{ getPlanDisplayPrice('STARTER') }}</span>
+          <span class="plan-interval">/ month</span>
+        </div>
       </div>
 
       <div class="plan-features">
-        <div class="feature-item">✓ 1 Store Outlet</div>
-        <div class="feature-item">✓ 2 Staff Logins (Owner + Cashier)</div>
-        <div class="feature-item">✓ Up to 50 Products</div>
-        <div class="feature-item">✓ Counter Walk-in POS & Audio Chime</div>
-        <div class="feature-item muted">✕ Advanced Analytics & Rush Hours</div>
-        <div class="feature-item muted">✕ Geofenced Self-Delivery</div>
+        <span class="features-title">WHAT'S INCLUDED:</span>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span><strong>1 Store Outlet</strong></span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span><strong>2 Staff Logins</strong> (Owner + Cashier)</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span>Up to <strong>50 Products</strong></span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span>Counter Walk-in POS & Soundbox Chime</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span>Direct WhatsApp Order Notifications</span>
+        </div>
+        <div class="feature-item muted">
+          <span class="feat-cross">✕</span>
+          <span>Advanced Analytics & Heatmaps</span>
+        </div>
+        <div class="feature-item muted">
+          <span class="feat-cross">✕</span>
+          <span>In-House Geofenced Delivery</span>
+        </div>
       </div>
 
-      <div class="plan-footer">
+      <div class="plan-action-box">
         @if (store.subscription().currentTier === 'STARTER') {
-          <span class="current-plan-pill">Current Active Plan</span>
+          <div class="current-plan-indicator">
+            <span class="check-icon">✓</span>
+            <span>Current Active Plan</span>
+          </div>
         } @else {
           <button 
             type="button" 
-            class="btn-plan" 
+            class="btn-downgrade" 
             (click)="upgrade('STARTER')">
             Downgrade to Starter
           </button>
@@ -106,59 +227,123 @@
       </div>
     </div>
 
-    <!-- Pro Retailer Tier -->
+    <!-- Pro Retailer Tier (Featured) -->
     <div class="plan-card popular-card" [class.is-current]="store.subscription().currentTier === 'PRO'">
-      <span class="popular-ribbon">MOST POPULAR</span>
-      <div class="plan-top">
-        <span class="plan-name">Pro Retailer</span>
-        <span class="plan-price">₹999 <span>/ month</span></span>
-        <span class="plan-desc">For busy sweet shops, bakeries, cafes, and restaurants.</span>
+      <div class="popular-ribbon">
+        <span>★ MOST POPULAR</span>
+      </div>
+
+      <div class="plan-header-box">
+        <div class="plan-type-badge highlight">RECOMMENDED</div>
+        <h3 class="plan-name">Pro Retailer</h3>
+        <p class="plan-desc">Ideal for neighborhood grocery, sweet marts, bakeries, cafes, and daily provision stores.</p>
+        <div class="price-box">
+          <span class="plan-price">{{ getPlanDisplayPrice('PRO') }}</span>
+          <span class="plan-interval">/ month</span>
+        </div>
+        @if (getAnnualSavingsLabel('PRO'); as savings) {
+          <span class="annual-saving-pill">{{ savings }}</span>
+        }
       </div>
 
       <div class="plan-features">
-        <div class="feature-item">✓ 1 Store Outlet</div>
-        <div class="feature-item">✓ 5 Staff Logins with PIN Switch</div>
-        <div class="feature-item font-semibold">✓ Unlimited Menu & Products</div>
-        <div class="feature-item font-semibold">✓ Peak Rush Hour Analytics & Heatmap</div>
-        <div class="feature-item">✓ Merchant-Managed Self-Delivery</div>
-        <div class="feature-item">✓ Table Tent & Standee QR Generator</div>
+        <span class="features-title">EVERYTHING IN STARTER, PLUS:</span>
+        <div class="feature-item">
+          <span class="feat-check highlight">✓</span>
+          <span><strong>1 Store Outlet</strong> (High Throughput)</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check highlight">✓</span>
+          <span><strong>5 Staff Logins</strong> with 4-Digit PIN Switch</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check highlight">✓</span>
+          <span><strong>Unlimited Products & Categories</strong></span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check highlight">✓</span>
+          <span><strong>Peak Rush Hours</strong> Telemetry & Heatmap</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check highlight">✓</span>
+          <span><strong>Store Self-Delivery</strong> with Pincode Filter</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check highlight">✓</span>
+          <span><strong>Table & Counter QR Standee</strong> Generator</span>
+        </div>
       </div>
 
-      <div class="plan-footer">
+      <div class="plan-action-box">
         @if (store.subscription().currentTier === 'PRO') {
-          <span class="current-plan-pill">Current Active Plan</span>
+          <div class="current-plan-indicator highlight">
+            <span class="check-icon">✓</span>
+            <span>Current Active Plan</span>
+          </div>
         } @else {
-          <nukkad-button variant="primary" (buttonClick)="upgrade('PRO')">
+          <button 
+            type="button" 
+            class="btn-primary-plan" 
+            (click)="upgrade('PRO')">
             Upgrade to Pro
-          </nukkad-button>
+          </button>
         }
       </div>
     </div>
 
-    <!-- Multi-Outlet Pro Tier -->
+    <!-- Multi-Outlet Enterprise -->
     <div class="plan-card" [class.is-current]="store.subscription().currentTier === 'MULTI_OUTLET'">
-      <div class="plan-top">
-        <span class="plan-name">Multi-Outlet Enterprise</span>
-        <span class="plan-price">₹2,499 <span>/ month</span></span>
-        <span class="plan-desc">For multi-branch sweet brands, central kitchens, and franchises.</span>
+      <div class="plan-header-box">
+        <div class="plan-type-badge">ENTERPRISE</div>
+        <h3 class="plan-name">Multi-Outlet Enterprise</h3>
+        <p class="plan-desc">For multi-branch sweet chains, franchises, central kitchens, and expanding retail brands.</p>
+        <div class="price-box">
+          <span class="plan-price">{{ getPlanDisplayPrice('MULTI_OUTLET') }}</span>
+          <span class="plan-interval">/ month</span>
+        </div>
+        @if (getAnnualSavingsLabel('MULTI_OUTLET'); as savings) {
+          <span class="annual-saving-pill">{{ savings }}</span>
+        }
       </div>
 
       <div class="plan-features">
-        <div class="feature-item font-semibold">✓ Up to 5 Outlets & Cloud Kitchens</div>
-        <div class="feature-item font-semibold">✓ Unlimited Staff Logins</div>
-        <div class="feature-item">✓ Consolidated Cross-Outlet Analytics</div>
-        <div class="feature-item">✓ Shared Central Inventory & Restock</div>
-        <div class="feature-item">✓ Priority 24/7 Nagpur Ops Support</div>
-        <div class="feature-item">✓ Custom GST Invoicing & Tax Ledger</div>
+        <span class="features-title">FOR GROWING RETAIL CHAINS:</span>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span><strong>Up to 5 Outlets</strong> & Central Cloud Kitchens</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span><strong>Unlimited Staff Seats</strong> Across Outlets</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span><strong>Consolidated Multi-Branch</strong> Analytics</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span><strong>Inter-Outlet Inventory Transfers</strong></span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span><strong>Automated GST Tax Invoicing</strong> Ledger</span>
+        </div>
+        <div class="feature-item">
+          <span class="feat-check">✓</span>
+          <span><strong>Dedicated 24/7 Operations Support</strong></span>
+        </div>
       </div>
 
-      <div class="plan-footer">
+      <div class="plan-action-box">
         @if (store.subscription().currentTier === 'MULTI_OUTLET') {
-          <span class="current-plan-pill">Current Active Plan</span>
+          <div class="current-plan-indicator">
+            <span class="check-icon">✓</span>
+            <span>Current Active Plan</span>
+          </div>
         } @else {
           <button 
             type="button" 
-            class="btn-plan" 
+            class="btn-upgrade-secondary" 
             (click)="upgrade('MULTI_OUTLET')">
             Upgrade to Multi-Outlet
           </button>
@@ -166,4 +351,29 @@
       </div>
     </div>
   </div>
+
+  <!-- Trust & Guarantees Strip -->
+  <section class="trust-guarantees-strip">
+    <div class="trust-item">
+      <span class="trust-icon">🛡️</span>
+      <div class="trust-text">
+        <strong>Zero Order Commissions</strong>
+        <span>100% of customer payments go directly to your registered bank account.</span>
+      </div>
+    </div>
+    <div class="trust-item">
+      <span class="trust-icon">🔄</span>
+      <div class="trust-text">
+        <strong>Cancel Anytime</strong>
+        <span>No lock-in contracts or exit penalties. Switch or pause your subscription anytime.</span>
+      </div>
+    </div>
+    <div class="trust-item">
+      <span class="trust-icon">🇮🇳</span>
+      <div class="trust-text">
+        <strong>Instant UPI AutoPay</strong>
+        <span>Supports GPay, PhonePe, Paytm, and Netbanking with GST compliant tax invoices.</span>
+      </div>
+    </div>
+  </section>
 </div>
