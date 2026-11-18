@@ -36,7 +36,7 @@
   <section class="metrics-row" aria-label="Delivery rules summary">
     <div class="metric-card purple-tint">
       <span class="metric-label">Service Radius</span>
-      <strong class="metric-val">{{ deliveryRadiusKm() }} km</strong>
+      <strong class="metric-val purple">{{ deliveryRadiusKm() }} km</strong>
       <span class="metric-sub">From your store location</span>
     </div>
 
@@ -54,7 +54,7 @@
 
     <div class="metric-card royal-tint">
       <span class="metric-label">Avg Delivery Time</span>
-      <strong class="metric-val purple">{{ estDeliveryMinutes() }} mins</strong>
+      <strong class="metric-val royal">{{ estDeliveryMinutes() }} mins</strong>
       <span class="metric-sub">Promise to customer</span>
     </div>
   </section>
@@ -75,11 +75,26 @@
   <div class="delivery-grid">
     <!-- LEFT: Coverage Area & Pincodes -->
     <main class="grid-main-col">
-      <!-- Geofence Card -->
+      <!-- Geofence & Real Map Card -->
       <section class="config-card">
-        <h2 class="card-title">Delivery Radius & Geofence</h2>
-        <p class="card-subtitle">Set your maximum delivery radius around your store coordinates.</p>
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">Delivery Radius & Geofence</h2>
+            <p class="card-subtitle">Set your maximum delivery radius around your store coordinates.</p>
+          </div>
+          <button 
+            type="button" 
+            class="btn-fullscreen-trigger" 
+            (click)="toggleFullscreenMap()" 
+            title="Open Fullscreen Interactive Map">
+            <svg viewBox="0 0 24 24" class="btn-fs-svg" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+            <span>⛶ Fullscreen</span>
+          </button>
+        </div>
 
+        <!-- Radius Slider & Quick Presets -->
         <div class="radius-slider-group">
           <div class="slider-header">
             <span class="slider-label">Coverage Radius:</span>
@@ -92,29 +107,115 @@
             step="0.5" 
             class="range-slider" 
             [ngModel]="deliveryRadiusKm()"
-            (ngModelChange)="deliveryRadiusKm.set(+$event)" />
+            (ngModelChange)="onRadiusChange(+$event)" />
           <div class="slider-ticks">
             <span>1 km</span>
             <span>5 km</span>
             <span>10 km</span>
             <span>15 km</span>
           </div>
+
+          <!-- Quick Preset Buttons -->
+          <div class="radius-quick-presets">
+            <span class="preset-label">Quick Set:</span>
+            @for (preset of [2, 3, 5, 6, 8, 10, 15]; track preset) {
+              <button 
+                type="button" 
+                class="preset-btn" 
+                [class.active]="deliveryRadiusKm() === preset"
+                (click)="onRadiusChange(preset)">
+                {{ preset }} km
+              </button>
+            }
+          </div>
         </div>
 
-        <!-- Vector Map Preview -->
-        <div class="vector-map-box">
-          <svg viewBox="0 0 400 180" class="map-svg" aria-label="Geofence radius preview">
-            <rect width="400" height="180" fill="#F1F5F9" rx="12"/>
-            <path d="M0 60 Q100 80 200 40 T400 70" stroke="#CBD5E1" stroke-width="6" fill="none"/>
-            <path d="M120 0 Q140 90 100 180" stroke="#E2E8F0" stroke-width="12" fill="none"/>
-            <path d="M260 0 Q280 100 320 180" stroke="#E2E8F0" stroke-width="8" fill="none"/>
-            <!-- Purple radius circle -->
-            <circle cx="200" cy="90" r="65" fill="rgba(109, 40, 217, 0.12)" stroke="#6D28D9" stroke-width="2" stroke-dasharray="4 4"/>
-            <!-- Store Pin -->
-            <circle cx="200" cy="90" r="10" fill="#FF5A1F"/>
-            <circle cx="200" cy="90" r="4" fill="#FFFFFF"/>
-          </svg>
-          <div class="map-badge">📍 Store Location (Coverage: {{ deliveryRadiusKm() }} km)</div>
+        <!-- Real Interactive Leaflet Map Container -->
+        <div class="interactive-map-wrapper" [class.is-fullscreen]="isMapFullscreen()">
+          <!-- Map Floating Controls Header (Shows in standard and fullscreen) -->
+          <div class="map-controls-header">
+            <div class="map-store-meta">
+              <span class="map-pulse-dot"></span>
+              <div class="map-store-details">
+                <strong class="store-head-name">{{ authStore.activeMerchant().merchantName }}</strong>
+                <span class="store-coord-sub">📍 {{ activeGeo().locality }}, {{ activeGeo().city }}</span>
+              </div>
+            </div>
+
+            <div class="map-header-actions">
+              <button 
+                type="button" 
+                class="btn-map-control" 
+                (click)="recenterMap()" 
+                title="Center on Store Pin">
+                🎯 Re-center
+              </button>
+              <button 
+                type="button" 
+                class="btn-map-control btn-fs-pill" 
+                (click)="toggleFullscreenMap()" 
+                title="Toggle Fullscreen Map">
+                {{ isMapFullscreen() ? '✕ Exit Fullscreen' : '⛶ Fullscreen' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- The Real Leaflet Map DOM Element -->
+          <div id="merchant-delivery-map" class="real-leaflet-map-element"></div>
+
+          <!-- Fullscreen Floating Radius Toolbar (visible when fullscreen) -->
+          @if (isMapFullscreen()) {
+            <div class="fullscreen-floating-toolbar">
+              <div class="fs-radius-picker">
+                <span class="fs-label">Radius: <strong>{{ deliveryRadiusKm() }} km</strong> (~{{ coverageAreaSqKm() }} km²)</span>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="15" 
+                  step="0.5" 
+                  class="fs-range-slider" 
+                  [ngModel]="deliveryRadiusKm()"
+                  (ngModelChange)="onRadiusChange(+$event)" />
+              </div>
+              <div class="fs-presets">
+                @for (preset of [2, 5, 8, 10, 15]; track preset) {
+                  <button 
+                    type="button" 
+                    class="fs-preset-pill" 
+                    [class.active]="deliveryRadiusKm() === preset"
+                    (click)="onRadiusChange(preset)">
+                    {{ preset }} km
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Bottom Map Status Bar -->
+          <div class="map-info-bar">
+            <div class="info-pill">
+              <span class="pill-label">Geofence:</span>
+              <strong class="pill-value">{{ deliveryRadiusKm() }} km</strong>
+            </div>
+            <div class="info-pill">
+              <span class="pill-label">Coverage Area:</span>
+              <strong class="pill-value">~{{ coverageAreaSqKm() }} km²</strong>
+            </div>
+            <div class="info-pill auto-hide-mobile">
+              <span class="pill-label">Pincode:</span>
+              <strong class="pill-value">{{ activeGeo().pincode }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Neighbourhoods Reached Preview -->
+        <div class="neighbourhoods-covered-box">
+          <span class="covered-title">📍 Neighbourhoods in {{ deliveryRadiusKm() }} km radius:</span>
+          <div class="covered-chips">
+            @for (area of activeGeo().keyAreas; track area) {
+              <span class="covered-chip">✓ {{ area }}</span>
+            }
+          </div>
         </div>
       </section>
 
@@ -198,26 +299,29 @@
       <!-- Store Riders Roster -->
       <section class="config-card">
         <div class="card-header-row">
-          <h2 class="card-title">In-Store Delivery Riders</h2>
+          <div>
+            <h2 class="card-title">In-Store Delivery Riders</h2>
+            <p class="card-subtitle">Manage internal delivery personnel.</p>
+          </div>
           <button type="button" class="btn-add-pin" (click)="showAddRider.set(!showAddRider())">
             {{ showAddRider() ? 'Cancel' : '+ Add Rider' }}
           </button>
         </div>
 
         @if (showAddRider()) {
-          <div class="rider-add-box" style="padding: 1rem; margin-bottom: 1rem; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
-            <input type="text" class="pincode-input" style="width: 100%; margin-bottom: 0.5rem;" placeholder="Rider Full Name" [ngModel]="newRiderName()" (ngModelChange)="newRiderName.set($event)" />
-            <input type="text" class="pincode-input" style="width: 100%; margin-bottom: 0.5rem;" placeholder="Phone (+91 ...)" [ngModel]="newRiderPhone()" (ngModelChange)="newRiderPhone.set($event)" />
-            <input type="text" class="pincode-input" style="width: 100%; margin-bottom: 0.5rem;" placeholder="Vehicle Details (e.g. MH-31-AB-1234)" [ngModel]="newRiderVehicle()" (ngModelChange)="newRiderVehicle.set($event)" />
+          <div class="rider-add-box">
+            <input type="text" class="pincode-input full-width" placeholder="Rider Full Name" [ngModel]="newRiderName()" (ngModelChange)="newRiderName.set($event)" />
+            <input type="text" class="pincode-input full-width" placeholder="Phone (+91 ...)" [ngModel]="newRiderPhone()" (ngModelChange)="newRiderPhone.set($event)" />
+            <input type="text" class="pincode-input full-width" placeholder="Vehicle Details (e.g. MH-31-AB-1234)" [ngModel]="newRiderVehicle()" (ngModelChange)="newRiderVehicle.set($event)" />
             <button type="button" class="btn-add-pin" (click)="addRider()">Save Delivery Partner</button>
           </div>
         }
 
         <div class="riders-list">
           @if (riders().length === 0) {
-            <div style="padding: 1.5rem 1rem; text-align: center; color: #64748b;">
+            <div class="no-riders-box">
               <p>No delivery riders registered yet.</p>
-              <p style="font-size: 13px; margin-top: 0.25rem;">Register your in-store staff to assign direct neighborhood deliveries.</p>
+              <p class="sub">Register your in-store staff to assign direct neighborhood deliveries.</p>
             </div>
           }
           @for (r of riders(); track r.id) {
