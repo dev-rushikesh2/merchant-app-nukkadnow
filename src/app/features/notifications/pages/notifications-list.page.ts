@@ -1,14 +1,13 @@
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { NotificationsStore } from '../state/notifications.store';
 import { NetworkSyncService } from '../../../core/network/network-sync.service';
-import { ButtonComponent } from '@nukkadnow/ui';
 
 @Component({
   selector: 'merchant-notifications-list-page',
   standalone: true,
-  imports: [CommonModule, ButtonComponent],
+  imports: [CommonModule],
   templateUrl: './notifications-list.page.html',
   styleUrls: ['./notifications-list.page.scss'],
   providers: [NotificationsStore],
@@ -19,8 +18,16 @@ export class NotificationsListPageComponent {
   readonly network = inject(NetworkSyncService);
   private router = inject(Router);
 
+  readonly isTestingChime = signal<boolean>(false);
+
+  testChime(): void {
+    this.isTestingChime.set(true);
+    this.store.testChime();
+    setTimeout(() => this.isTestingChime.set(false), 1200);
+  }
+
   pilotChecklist = [
-    { title: 'Affordable Android Devices (Redmi / Realme 4GB)', verified: true, notes: 'Touch targets $\\ge 48$px, zero jank on OnPush.' },
+    { title: 'Affordable Android Devices (Redmi / Realme 4GB)', verified: true, notes: 'Touch targets ≥ 48px, zero jank on OnPush.' },
     { title: 'Network Disconnection & Safe Offline Queue', verified: true, notes: 'Local drafts isolated; orders never accepted offline.' },
     { title: 'Web Audio API Dual-Chime Alert', verified: true, notes: 'Audible in loud bazaar without external MP3 asset dependency.' },
     { title: 'Home Business Privacy Shield', verified: true, notes: 'Residential street address masked from public storefront.' },

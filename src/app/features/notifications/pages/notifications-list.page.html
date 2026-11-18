@@ -5,9 +5,15 @@
       <div class="badge-row">
         <span class="badge badge-accent">Operational Alerts</span>
         @if (network.isOnline()) {
-          <span class="badge badge-success">✓ Realtime WebSocket Online</span>
+          <span class="badge badge-success">
+            <span class="status-dot"></span>
+            Realtime WebSocket Online
+          </span>
         } @else {
-          <span class="badge badge-danger">⚠️ Offline Mode Active</span>
+          <span class="badge badge-danger">
+            <span class="status-dot danger"></span>
+            Offline Mode Active
+          </span>
         }
       </div>
       <h1>Notifications, Audio Chimes & Pilot UAT</h1>
@@ -15,11 +21,20 @@
         Configure order alert sounds, monitor capacity warnings, and verify the Nagpur Pilot operational checklist.
       </p>
     </div>
+
     <div class="header-actions">
-      <button type="button" class="btn-test-chime" (click)="store.testChime()">
-        🔊 Test Loud Order Chime
+      <button 
+        type="button" 
+        class="btn-test-chime" 
+        [class.playing]="isTestingChime()"
+        (click)="testChime()">
+        <span class="btn-icon">{{ isTestingChime() ? '🔔' : '🔊' }}</span>
+        <span>{{ isTestingChime() ? 'Playing 800Hz / 1200Hz...' : 'Test Loud Order Chime' }}</span>
       </button>
-      <button type="button" class="btn-secondary" (click)="store.markAllRead()">
+      <button 
+        type="button" 
+        class="btn-secondary" 
+        (click)="store.markAllRead()">
         Mark All Read
       </button>
     </div>
@@ -44,29 +59,44 @@
 
   <div class="grid-2col">
     <!-- Left: Notifications Feed -->
-    <section class="card">
+    <section class="card notif-feed-card">
       <div class="card-head">
-        <h2 class="card-title">Live Notifications ({{ store.unreadCount() }} Unread)</h2>
+        <div class="card-title-group">
+          <h2 class="card-title">Live Notifications</h2>
+          <span class="unread-pill" [class.has-unread]="store.unreadCount() > 0">
+            {{ store.unreadCount() }} Unread
+          </span>
+        </div>
       </div>
 
       <div class="notif-list">
-        @for (item of store.notifications(); track item.id) {
-          <div 
-            class="notif-item" 
-            [class.is-unread]="!item.isRead"
-            (click)="store.markRead(item.id); navigateTo(item.actionRoute)">
-            <div class="notif-top">
-              <span class="badge-cat" [ngClass]="getCategoryBadge(item.category)">
-                {{ item.category.replace('_', ' ') }}
-              </span>
-              <span class="notif-time">{{ item.timestamp }}</span>
-            </div>
-            <span class="notif-title">{{ item.title }}</span>
-            <p class="notif-msg">{{ item.message }}</p>
-            @if (item.actionRoute) {
-              <span class="notif-action-hint">Click to open {{ item.actionRoute }} →</span>
-            }
+        @if (store.notifications().length === 0) {
+          <div class="notif-empty-state">
+            <div class="empty-icon-wrap">🔔</div>
+            <strong class="empty-title">All Caught Up!</strong>
+            <p class="empty-desc">
+              No unread notifications right now. New customer orders, dispatch alerts, and inventory thresholds will sound here in real time.
+            </p>
           </div>
+        } @else {
+          @for (item of store.notifications(); track item.id) {
+            <div 
+              class="notif-item" 
+              [class.is-unread]="!item.isRead"
+              (click)="store.markRead(item.id); navigateTo(item.actionRoute)">
+              <div class="notif-top">
+                <span class="badge-cat" [ngClass]="getCategoryBadge(item.category)">
+                  {{ item.category.replace('_', ' ') }}
+                </span>
+                <span class="notif-time">{{ item.timestamp }}</span>
+              </div>
+              <span class="notif-title">{{ item.title }}</span>
+              <p class="notif-msg">{{ item.message }}</p>
+              @if (item.actionRoute) {
+                <span class="notif-action-hint">Click to open {{ item.actionRoute }} →</span>
+              }
+            </div>
+          }
         }
       </div>
     </section>
@@ -75,36 +105,47 @@
     <div class="right-stack">
       <!-- Audio & Alert Preferences Card -->
       <section class="card">
-        <h2 class="card-title">Audio & Device Alert Preferences</h2>
-        <p class="card-desc">Designed to be heard across a noisy kitchen or retail counter.</p>
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Audio & Device Alert Preferences</h2>
+            <p class="card-desc">Designed to cut through high ambient noise across retail counters & kitchens.</p>
+          </div>
+        </div>
 
         <div class="pref-rows">
           <div class="pref-row" (click)="store.toggleSound()">
-            <div>
+            <div class="pref-text">
               <span class="pref-title">Dual-Chime Order Synthesizer</span>
-              <span class="pref-desc">Plays high-pitch 800Hz / 1200Hz synthesized sound for new orders.</span>
+              <span class="pref-desc">Plays loud 800Hz / 1200Hz synthesized harmonic chime on new incoming orders.</span>
             </div>
-            <input type="checkbox" class="toggle-cb" [checked]="store.preferences().soundChimeEnabled" tabindex="-1" />
+            <div class="switch-toggle" [class.checked]="store.preferences().soundChimeEnabled">
+              <span class="switch-thumb"></span>
+            </div>
           </div>
 
           <div class="pref-row" (click)="store.togglePush()">
-            <div>
+            <div class="pref-text">
               <span class="pref-title">Background Push Notifications</span>
-              <span class="pref-desc">Receive order notifications even when the app/browser tab is in background.</span>
+              <span class="pref-desc">Receive immediate alerts even when your phone screen is locked or browser is minimized.</span>
             </div>
-            <input type="checkbox" class="toggle-cb" [checked]="store.preferences().pushNotificationsEnabled" tabindex="-1" />
+            <div class="switch-toggle" [class.checked]="store.preferences().pushNotificationsEnabled">
+              <span class="switch-thumb"></span>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- Nagpur Pilot Launch Checklist Card -->
       <section class="card pilot-card">
-        <div class="card-head">
-          <div>
+        <div class="card-head uat-head">
+          <div class="uat-title-box">
             <h2 class="card-title">Nagpur Pilot Launch UAT Sign-off</h2>
             <p class="card-desc">Ground-reality readiness checklist verified across 5 pilot stores.</p>
           </div>
-          <span class="badge-uat">100% READY</span>
+          <span class="badge-uat">
+            <span class="uat-check">✓</span>
+            100% READY
+          </span>
         </div>
 
         <div class="checklist-items">
