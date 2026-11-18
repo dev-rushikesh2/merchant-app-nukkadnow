@@ -130,7 +130,11 @@
           } @empty {
             <div class="no-items-state">
               <span class="empty-icon">🔍</span>
-              <p>No products match "{{ searchQuery() }}"</p>
+              @if (searchQuery()) {
+                <p>No products match "{{ searchQuery() }}"</p>
+              } @else {
+                <p>No products available in this category.</p>
+              }
               @if (activeCategory() !== 'All' || searchQuery()) {
                 <button type="button" class="btn-reset-filters" (click)="activeCategory.set('All'); searchQuery.set('')">
                   Show All Products

@@ -9,8 +9,12 @@ export class CatalogueApi {
   private http = inject(HttpClientAdapter);
   private readonly baseUrl = '/api/v1/merchant/catalog/products';
 
-  fetchProducts(outletId = 'outlet-main'): Observable<ProductItem[]> {
-    return this.http.get<any[]>(this.baseUrl, { outletId }).pipe(
+  fetchProducts(outletId?: string): Observable<ProductItem[]> {
+    const params: Record<string, string> = {};
+    if (outletId && outletId !== 'outlet-main') {
+      params['outletId'] = outletId;
+    }
+    return this.http.get<any[]>(this.baseUrl, Object.keys(params).length > 0 ? params : undefined).pipe(
       map(items => {
         if (!items || items.length === 0) return [];
         return items.map((p: any) => ({

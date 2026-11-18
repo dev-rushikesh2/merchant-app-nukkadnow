@@ -98,8 +98,10 @@ export class WalkinOrdersPageComponent implements OnInit, OnDestroy {
 
   loadCatalogProducts(): void {
     this.isLoading.set(true);
-    const activeTenant = this.authStore.activeMerchant().tenantId;
-    this.catalogueApi.fetchProducts().subscribe({
+    const activeMerchant = this.authStore.activeMerchant();
+    const activeTenant = activeMerchant.tenantId;
+    const outletId = activeMerchant.outletId;
+    this.catalogueApi.fetchProducts(outletId).subscribe({
       next: (data) => {
         if (data && data.length > 0) {
           const mapped: PosProduct[] = data.map((p: any) => ({
@@ -194,7 +196,7 @@ export class WalkinOrdersPageComponent implements OnInit, OnDestroy {
   });
 
   getCategoryBadge(cat: string): string {
-    if (cat === 'All') return 'All Items';
+    if (cat === 'All') return 'All';
     const c = cat.toLowerCase();
     if (c.includes('veg') || c.includes('fruit') || c.includes('greens')) return `🥦 ${cat}`;
     if (c.includes('snack') || c.includes('chivda') || c.includes('bakery')) return `🥟 ${cat}`;
