@@ -16,7 +16,7 @@
       <p class="page-subtitle">Fast touch billing with instant token creation and kitchen dispatch.</p>
     </div>
 
-    <div class="header-links">
+    <div class="header-actions">
       <a routerLink="/queue-board" class="btn-view-kds">
         <svg viewBox="0 0 24 24" class="btn-svg" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
@@ -28,10 +28,34 @@
     </div>
   </header>
 
-  <!-- POS Split View: 2 Columns on Desktop, Stacked on Mobile -->
+  <!-- Mobile View Toggle Tabs (Visible on mobile screens < 992px) -->
+  <nav class="pos-mobile-toggle" aria-label="POS Views">
+    <button 
+      type="button" 
+      class="mobile-view-btn" 
+      [class.active]="activeMobileView() === 'catalog'"
+      (click)="setActiveMobileView('catalog')">
+      <span class="btn-text">🏷️ Catalogue ({{ filteredProducts().length }})</span>
+    </button>
+    <button 
+      type="button" 
+      class="mobile-view-btn" 
+      [class.active]="activeMobileView() === 'ticket'"
+      (click)="setActiveMobileView('ticket')">
+      <span class="btn-text">🛒 Ticket ({{ cartItemsCount() }})</span>
+      @if (grandTotal() > 0) {
+        <span class="mobile-ticket-badge">₹{{ grandTotal() }}</span>
+      }
+    </button>
+  </nav>
+
+  <!-- POS Split View: 2 Columns on Desktop, Switchable / Stacked on Mobile -->
   <div class="pos-layout-grid">
     <!-- LEFT PANEL: Product Catalog & Search -->
-    <section class="products-catalog-panel">
+    <section 
+      class="products-catalog-panel" 
+      [class.mobile-hidden]="activeMobileView() !== 'catalog'">
+      
       <!-- Search & Barcode Scan Row -->
       <div class="search-scan-bar">
         <div class="pos-search-wrap">
@@ -45,88 +69,84 @@
             placeholder="Search items or type SKU..." 
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)" />
+          @if (searchQuery()) {
+            <button type="button" class="btn-clear-search" (click)="searchQuery.set('')">×</button>
+          }
         </div>
 
         <button type="button" class="btn-scan-barcode" (click)="simulateBarcodeScan()" title="Simulate Barcode Scan">
           <svg viewBox="0 0 24 24" class="scan-svg" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14M21 5v14"/>
           </svg>
-          <span>Scan</span>
+          <span class="scan-label">Scan</span>
         </button>
       </div>
 
-      <!-- Category Filter Pills -->
+      <!-- Category Filter Pills (Dynamic from Active Merchant Catalogue) -->
       <div class="category-pills-row">
-        <button 
-          type="button" 
-          class="cat-pill" 
-          [class.active]="activeCategory() === 'All'"
-          (click)="activeCategory.set('All')">
-          All
-        </button>
-        <button 
-          type="button" 
-          class="cat-pill" 
-          [class.active]="activeCategory() === 'Beverages'"
-          (click)="activeCategory.set('Beverages')">
-          ☕ Beverages
-        </button>
-        <button 
-          type="button" 
-          class="cat-pill" 
-          [class.active]="activeCategory() === 'Snacks'"
-          (click)="activeCategory.set('Snacks')">
-          🥟 Snacks
-        </button>
-        <button 
-          type="button" 
-          class="cat-pill" 
-          [class.active]="activeCategory() === 'Dairy'"
-          (click)="activeCategory.set('Dairy')">
-          🥛 Dairy
-        </button>
-        <button 
-          type="button" 
-          class="cat-pill" 
-          [class.active]="activeCategory() === 'Bakery'"
-          (click)="activeCategory.set('Bakery')">
-          🍞 Bakery
-        </button>
-        <button 
-          type="button" 
-          class="cat-pill" 
-          [class.active]="activeCategory() === 'Groceries'"
-          (click)="activeCategory.set('Groceries')">
-          🍃 Groceries
-        </button>
-      </div>
-
-      <!-- Product Tiles Grid -->
-      <div class="product-tiles-grid">
-        @for (prod of filteredProducts(); track prod.id) {
-          <button type="button" class="product-tile-card" (click)="addToCart(prod)">
-            <div class="tile-emoji-box">{{ prod.emoji }}</div>
-            <div class="tile-details">
-              <strong class="tile-name">{{ prod.name }}</strong>
-              <span class="tile-price">₹{{ prod.price }}</span>
-            </div>
-            <div class="tile-add-icon">
-              <svg viewBox="0 0 24 24" class="add-svg" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-            </div>
+        @for (cat of dynamicCategories(); track cat) {
+          <button 
+            type="button" 
+            class="cat-pill" 
+            [class.active]="activeCategory() === cat"
+            (click)="setCategory(cat)">
+            {{ getCategoryBadge(cat) }}
           </button>
-        } @empty {
-          <div class="no-items-state">
-            <p>No products match "{{ searchQuery() }}"</p>
-          </div>
         }
       </div>
+
+      <!-- Loading State -->
+      @if (isLoading()) {
+        <div class="pos-loading-state">
+          <div class="pos-spinner"></div>
+          <span>Loading catalog items...</span>
+        </div>
+      } @else {
+        <!-- Product Tiles Grid -->
+        <div class="product-tiles-grid">
+          @for (prod of filteredProducts(); track prod.id) {
+            <button 
+              type="button" 
+              class="product-tile-card" 
+              [class.out-of-stock]="!prod.inStock"
+              (click)="addToCart(prod)">
+              <div class="tile-emoji-box">{{ prod.emoji }}</div>
+              <div class="tile-details">
+                <strong class="tile-name">{{ prod.name }}</strong>
+                <span class="tile-category">{{ prod.category }}</span>
+                <span class="tile-price">₹{{ prod.price }}</span>
+              </div>
+              <div class="tile-add-icon" [title]="prod.inStock ? 'Add to ticket' : 'Out of stock'">
+                @if (prod.inStock) {
+                  <svg viewBox="0 0 24 24" class="add-svg" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                } @else {
+                  <span class="stock-badge">Out</span>
+                }
+              </div>
+            </button>
+          } @empty {
+            <div class="no-items-state">
+              <span class="empty-icon">🔍</span>
+              <p>No products match "{{ searchQuery() }}"</p>
+              @if (activeCategory() !== 'All' || searchQuery()) {
+                <button type="button" class="btn-reset-filters" (click)="activeCategory.set('All'); searchQuery.set('')">
+                  Show All Products
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
     </section>
 
     <!-- RIGHT PANEL: Current Ticket / Cart -->
-    <aside class="ticket-panel">
+    <aside 
+      class="ticket-panel" 
+      [class.mobile-hidden]="activeMobileView() !== 'ticket'">
+      
       <!-- Customer Selector -->
       <div class="customer-toggle-card">
         <div class="customer-type-tabs">
@@ -135,14 +155,14 @@
             class="cust-tab-btn" 
             [class.active]="isGuest()"
             (click)="isGuest.set(true)">
-            Walk-in Guest
+            <span>🚶 Walk-in Guest</span>
           </button>
           <button 
             type="button" 
             class="cust-tab-btn" 
             [class.active]="!isGuest()"
             (click)="isGuest.set(false)">
-            Registered Customer
+            <span>👤 Registered</span>
           </button>
         </div>
 
@@ -167,9 +187,9 @@
       <!-- Ticket Items List -->
       <div class="ticket-items-container">
         <div class="ticket-header-row">
-          <h2 class="ticket-title">Current Ticket ({{ cart().length }})</h2>
+          <h2 class="ticket-title">Current Ticket ({{ cartItemsCount() }})</h2>
           @if (cart().length > 0) {
-            <button type="button" class="btn-clear-cart" (click)="clearCart()">Clear</button>
+            <button type="button" class="btn-clear-cart" (click)="clearCart()">Clear All</button>
           }
         </div>
 
@@ -186,9 +206,9 @@
 
               <div class="line-controls">
                 <div class="stepper-box">
-                  <button type="button" class="step-btn" (click)="decreaseQty(item.product.id)">−</button>
+                  <button type="button" class="step-btn" (click)="decreaseQty(item.product.id)" aria-label="Decrease quantity">−</button>
                   <span class="step-num">{{ item.quantity }}</span>
-                  <button type="button" class="step-btn" (click)="increaseQty(item.product.id)">+</button>
+                  <button type="button" class="step-btn" (click)="increaseQty(item.product.id)" aria-label="Increase quantity">+</button>
                 </div>
                 <strong class="line-subtotal">₹{{ item.product.price * item.quantity }}</strong>
                 <button type="button" class="btn-delete-line" (click)="removeFromCart(item.product.id)" title="Remove item">
@@ -199,7 +219,13 @@
           } @empty {
             <div class="empty-ticket-prompt">
               <div class="empty-basket-icon">🛒</div>
-              <p>Ticket is empty.<br>Tap products from the left to begin billing.</p>
+              <p>Ticket is empty.<br>Tap products from catalogue to begin billing.</p>
+              <button 
+                type="button" 
+                class="btn-browse-catalog" 
+                (click)="setActiveMobileView('catalog')">
+                Browse Catalogue
+              </button>
             </div>
           }
         </div>
@@ -210,39 +236,48 @@
         <!-- Quick Discount Pills -->
         <div class="discount-pills-row">
           <span class="discount-label">Discount:</span>
-          <button 
-            type="button" 
-            class="disc-pill" 
-            [class.active]="discountPercent() === 0"
-            (click)="setDiscount(0)">
-            0%
-          </button>
-          <button 
-            type="button" 
-            class="disc-pill" 
-            [class.active]="discountPercent() === 5"
-            (click)="setDiscount(5)">
-            5%
-          </button>
-          <button 
-            type="button" 
-            class="disc-pill" 
-            [class.active]="discountPercent() === 10"
-            (click)="setDiscount(10)">
-            10%
-          </button>
-          <button 
-            type="button" 
-            class="disc-pill" 
-            [class.active]="discountPercent() === 15"
-            (click)="setDiscount(15)">
-            15%
-          </button>
+          <div class="disc-options">
+            <button 
+              type="button" 
+              class="disc-pill" 
+              [class.active]="discountPercent() === 0"
+              (click)="setDiscount(0)">
+              0%
+            </button>
+            <button 
+              type="button" 
+              class="disc-pill" 
+              [class.active]="discountPercent() === 5"
+              (click)="setDiscount(5)">
+              5%
+            </button>
+            <button 
+              type="button" 
+              class="disc-pill" 
+              [class.active]="discountPercent() === 10"
+              (click)="setDiscount(10)">
+              10%
+            </button>
+            <button 
+              type="button" 
+              class="disc-pill" 
+              [class.active]="discountPercent() === 15"
+              (click)="setDiscount(15)">
+              15%
+            </button>
+            <button 
+              type="button" 
+              class="disc-pill" 
+              [class.active]="discountPercent() === 20"
+              (click)="setDiscount(20)">
+              20%
+            </button>
+          </div>
         </div>
 
         <div class="calc-lines">
           <div class="calc-row">
-            <span>Subtotal</span>
+            <span>Subtotal ({{ cartItemsCount() }} items)</span>
             <span>₹{{ subtotal() }}</span>
           </div>
           @if (discountAmount() > 0) {
@@ -257,7 +292,7 @@
           </div>
           <div class="calc-row total-highlight">
             <strong>Total Payable</strong>
-            <strong>₹{{ grandTotal() }}</strong>
+            <strong class="total-value">₹{{ grandTotal() }}</strong>
           </div>
         </div>
 
@@ -302,7 +337,7 @@
           class="btn-checkout-ticket" 
           [disabled]="cart().length === 0"
           (click)="completeWalkinOrder()">
-          <span class="btn-main-label">Pay ₹{{ grandTotal() }} & Print Token</span>
+          <span class="btn-main-label">Pay ₹{{ grandTotal() }} & Dispatch Token</span>
           <svg viewBox="0 0 24 24" class="btn-arrow" fill="none" stroke="currentColor" stroke-width="2.5">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
@@ -310,6 +345,25 @@
       </div>
     </aside>
   </div>
+
+  <!-- Mobile Floating Checkout Bar (When in Catalog View and Cart has items) -->
+  @if (activeMobileView() === 'catalog' && cartItemsCount() > 0) {
+    <div class="mobile-floating-ticket-bar">
+      <div class="floating-ticket-meta">
+        <span class="floating-ticket-count">🛒 {{ cartItemsCount() }} items</span>
+        <strong class="floating-ticket-total">₹{{ grandTotal() }}</strong>
+      </div>
+      <button 
+        type="button" 
+        class="btn-floating-view-ticket" 
+        (click)="setActiveMobileView('ticket')">
+        <span>Review Ticket & Pay</span>
+        <svg viewBox="0 0 24 24" class="floating-arrow" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+    </div>
+  }
 
   <!-- COMPLETED ORDER RECEIPT MODAL -->
   @if (receiptModal(); as rec) {
