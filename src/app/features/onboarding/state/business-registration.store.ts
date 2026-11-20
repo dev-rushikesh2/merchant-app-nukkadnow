@@ -144,10 +144,10 @@ export class BusinessRegistrationStore {
   ]);
 
   readonly bankDetails = signal<BankSettlementDetails>({
-    accountHolderName: 'Rajesh Sharma',
-    accountNumber: '**********9012',
-    ifscCode: 'HDFC0001234',
-    bankName: 'HDFC Bank'
+    accountHolderName: '',
+    accountNumber: '',
+    ifscCode: '',
+    bankName: ''
   });
 
   readonly optionalLicence = signal<{ uploaded: boolean; fileName?: string; fileSize?: string }>({
@@ -288,7 +288,7 @@ export class BusinessRegistrationStore {
       this.registrationApi.uploadDocument(this.applicationId(), {
         documentType: typeMap[docId] || 'BUSINESS_PROOF',
         fileName,
-        fileUrl: `https://storage.nukkadnow.internal/docs/${fileName}`,
+        fileUrl: `/api/v1/merchant/storage/docs/${encodeURIComponent(fileName)}`,
         fileSize
       }).subscribe();
     }
@@ -305,7 +305,7 @@ export class BusinessRegistrationStore {
     this.registrationApi.uploadDocument(this.applicationId(), {
       documentType: 'CATEGORY_LICENCE',
       fileName,
-      fileUrl: `https://storage.nukkadnow.internal/docs/${fileName}`,
+      fileUrl: `/api/v1/merchant/storage/docs/${encodeURIComponent(fileName)}`,
       fileSize
     }).subscribe();
   }
@@ -324,15 +324,8 @@ export class BusinessRegistrationStore {
 
   setPreviewStatus(code: ApplicationStatusCode): void {
     this.activePreviewStatus.set(code);
-    // Sync verification status with backend for audit tracking
-    const statusMap: Record<ApplicationStatusCode, string> = {
-      submitted: 'SUBMITTED',
-      under_review: 'UNDER_REVIEW',
-      action_required: 'ACTION_REQUIRED',
-      approved: 'APPROVED',
-      rejected: 'REJECTED'
-    };
-    this.registrationApi.updateStatus(this.applicationId(), statusMap[code]).subscribe();
+    // Security Fix (M-08): Status updates are strictly administrative.
+    // Merchants cannot self-approve applications on the backend.
   }
 
   nextStep(): void {
@@ -399,10 +392,10 @@ export class BusinessRegistrationStore {
       serviceRadius: this.fulfilment().serviceRadius,
       minOrderValue: this.fulfilment().minOrderValue,
       prepTime: this.fulfilment().prepTime,
-      bankAccountHolder: this.bankDetails().accountHolderName,
-      bankAccountNumber: this.bankDetails().accountNumber,
-      bankIfscCode: this.bankDetails().ifscCode,
-      bankName: this.bankDetails().bankName,
+      bankAccountHolder: this.currentStep() >= 6 ? this.bankDetails().accountHolderName : undefined,
+      bankAccountNumber: this.currentStep() >= 6 ? this.bankDetails().accountNumber : undefined,
+      bankIfscCode: this.currentStep() >= 6 ? this.bankDetails().ifscCode : undefined,
+      bankName: this.currentStep() >= 6 ? this.bankDetails().bankName : undefined,
     };
 
     this.isSyncing.set(true);
@@ -491,7 +484,7 @@ export class BusinessRegistrationStore {
       });
       this.bankDetails.set({
         accountHolderName: 'Vinod Patil',
-        accountNumber: '**********3341',
+        accountNumber: '50100412343341',
         ifscCode: 'SBIN0000432',
         bankName: 'State Bank of India'
       });
@@ -540,7 +533,7 @@ export class BusinessRegistrationStore {
       });
       this.bankDetails.set({
         accountHolderName: 'Rajesh Sharma',
-        accountNumber: '**********9012',
+        accountNumber: '50100412349012',
         ifscCode: 'HDFC0001234',
         bankName: 'HDFC Bank'
       });
@@ -589,7 +582,7 @@ export class BusinessRegistrationStore {
       });
       this.bankDetails.set({
         accountHolderName: 'Sunita Kulkarni',
-        accountNumber: '**********6789',
+        accountNumber: '50100412346789',
         ifscCode: 'MAHB0000123',
         bankName: 'Bank of Maharashtra'
       });
@@ -638,7 +631,7 @@ export class BusinessRegistrationStore {
       });
       this.bankDetails.set({
         accountHolderName: 'Mahalaxmi Food LLP',
-        accountNumber: '**********5512',
+        accountNumber: '50100412345512',
         ifscCode: 'UTIB0000045',
         bankName: 'Axis Bank'
       });

@@ -1,9 +1,47 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { BatchViewModel, BatchStatus } from '../models/batches-view.model';
 
+const DEFAULT_BATCHES: BatchViewModel[] = [
+  {
+    id: 'batch-morn-01',
+    batchName: 'Morning Fresh Produce Batch',
+    productName: 'Fresh Nagpur Palak & Methi Leaves',
+    productId: 'prod-palak-001',
+    productionDate: new Date().toISOString().split('T')[0],
+    readyTime: '10:30',
+    cutoffTime: '09:45',
+    bookedUnits: 14,
+    totalCapacityUnits: 25,
+    unitPricePaise: 5000,
+    instructions: 'Harvested early morning, sorted, washed, ready for 10:30 AM pickup.',
+    status: 'OPEN_FOR_ORDERS',
+    preorders: [
+      { orderId: '#ORD78291', customerName: 'Rahul Deshmukh', quantity: 2, paymentStatus: 'PAID', pickupSlot: '10:30 AM' },
+      { orderId: '#ORD78290', customerName: 'Priya Kulkarni', quantity: 2, paymentStatus: 'PAID', pickupSlot: '10:30 AM' }
+    ]
+  },
+  {
+    id: 'batch-eve-02',
+    batchName: 'Evening Fresh Desi Tomatoes Batch',
+    productName: 'Farm Fresh Desi Tomatoes (1 kg)',
+    productId: 'prod-tomato-002',
+    productionDate: new Date().toISOString().split('T')[0],
+    readyTime: '17:30',
+    cutoffTime: '16:00',
+    bookedUnits: 20,
+    totalCapacityUnits: 30,
+    unitPricePaise: 8000,
+    instructions: 'Packed in eco-friendly paper bags for evening rush.',
+    status: 'OPEN_FOR_ORDERS',
+    preorders: [
+      { orderId: '#ORD78289', customerName: 'Amit Patil', quantity: 2, paymentStatus: 'PAID', pickupSlot: '05:30 PM' }
+    ]
+  }
+];
+
 @Injectable()
 export class BatchesStore {
-  readonly batches = signal<BatchViewModel[]>([]);
+  readonly batches = signal<BatchViewModel[]>([...DEFAULT_BATCHES]);
   readonly filter = signal<string>('ALL');
 
   readonly filteredBatches = computed(() => {

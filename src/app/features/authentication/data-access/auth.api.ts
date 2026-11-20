@@ -15,7 +15,9 @@ export interface OtpVerifyResponse {
   refreshToken: string;
   user: {
     id: string;
-    phoneNumber: string;
+    phoneNumber?: string;
+    email?: string;
+    fullName?: string;
     roles: string[];
     tenantId: string;
     outletId: string;
@@ -28,15 +30,27 @@ export class AuthApi {
   private http = inject(HttpClientAdapter);
   private readonly baseUrl = '/api/v1/merchant/auth';
 
-  requestOtp(phoneNumber: string): Observable<OtpRequestResponse> {
-    return this.http.post<OtpRequestResponse>(`${this.baseUrl}/otp/request`, { phoneNumber });
+  requestOtp(identifier: string): Observable<OtpRequestResponse> {
+    const isEmail = identifier.includes('@');
+    const payload = isEmail ? { email: identifier.trim() } : { phoneNumber: identifier.trim() };
+    return this.http.post<OtpRequestResponse>(`${this.baseUrl}/otp/request`, payload);
   }
 
-  verifyOtp(challengeId: string, phoneNumber: string, otp: string): Observable<OtpVerifyResponse> {
-    return this.http.post<OtpVerifyResponse>(`${this.baseUrl}/otp/verify`, { challengeId, phoneNumber, otp });
+  verifyOtp(challengeId: string | null, identifier: string, otp: string): Observable<OtpVerifyResponse> {
+    const isEmail = identifier.includes('@');
+    const payload: any = { otp: otp.trim() };
+    if (challengeId) payload.challengeId = challengeId;
+    if (isEmail) {
+      payload.email = identifier.trim();
+    } else {
+      payload.phoneNumber = identifier.trim();
+    }
+    return this.http.post<OtpVerifyResponse>(`${this.baseUrl}/otp/verify`, payload);
   }
 
-  login(phoneNumber: string): Observable<OtpVerifyResponse> {
-    return this.http.post<OtpVerifyResponse>(`${this.baseUrl}/login`, { phoneNumber });
+  login(identifier: string): Observable<OtpVerifyResponse> {
+    const isEmail = identifier.includes('@');
+    const payload = isEmail ? { email: identifier.trim() } : { phoneNumber: identifier.trim() };
+    return this.http.post<OtpVerifyResponse>(`${this.baseUrl}/login`, payload);
   }
 }

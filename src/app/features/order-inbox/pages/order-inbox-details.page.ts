@@ -1,7 +1,9 @@
-﻿import { Component, inject, signal, ChangeDetectionStrategy, computed, OnInit } from '@angular/core';
+﻿import { Component, inject, signal, ChangeDetectionStrategy, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { OrderInboxApi } from '../data-access/order-inbox.api';
 import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
 
@@ -9,6 +11,7 @@ export interface OrderItemDetail {
   id: string;
   name: string;
   emoji: string;
+  imageUrl?: string;
   variant: string;
   quantity: number;
   unitPrice: number;
@@ -120,7 +123,7 @@ export interface DetailedOrder {
                 <div class="cust-avatar-large">{{ currentOrder().customerName.charAt(0) }}</div>
                 <div class="cust-details">
                   <strong class="cust-name-lg">{{ currentOrder().customerName }}</strong>
-                  <span class="cust-phone-lg">{{ currentOrder().customerPhone }}</span>
+                  <span class="cust-phone-lg">{{ maskedPhone() }}</span>
                 </div>
               </div>
 
@@ -196,7 +199,11 @@ export interface DetailedOrder {
             <div class="items-table">
               @for (item of currentOrder().items; track item.id) {
                 <div class="order-item-row">
-                  <div class="item-emoji-box">{{ item.emoji }}</div>
+                  @if (item.imageUrl) {
+                    <img [src]="item.imageUrl" [alt]="item.name" class="item-img-thumb" (error)="item.imageUrl = undefined" />
+                  } @else {
+                    <div class="item-emoji-box">{{ item.emoji }}</div>
+                  }
                   <div class="item-info">
                     <strong class="item-name">{{ item.name }}</strong>
                     <span class="item-variant">{{ item.variant }} • ₹{{ item.unitPrice }}</span>
@@ -342,7 +349,7 @@ export interface DetailedOrder {
                 <div class="timeline-dot">✓</div>
                 <div class="timeline-content">
                   <strong>Order Received</strong>
-                  <span class="time-stamp">10:24 AM • Customer placed order</span>
+                  <span class="time-stamp">{{ currentOrder().receivedTime }} • Customer order received</span>
                 </div>
               </div>
 
@@ -353,7 +360,7 @@ export interface DetailedOrder {
                 <div class="timeline-content">
                   <strong>Accepted & Kitchen Prep</strong>
                   <span class="time-stamp">
-                    {{ currentOrder().status !== 'New' ? '10:26 AM • In kitchen preparation' : 'Waiting for shop acceptance' }}
+                    {{ currentOrder().status !== 'New' ? 'In kitchen preparation' : 'Waiting for shop acceptance' }}
                   </span>
                 </div>
               </div>
@@ -364,7 +371,9 @@ export interface DetailedOrder {
                 </div>
                 <div class="timeline-content">
                   <strong>Packed & Ready</strong>
-                  <span class="time-stamp">Ready at pickup station</span>
+                  <span class="time-stamp">
+                    {{ (currentOrder().status === 'Ready' || currentOrder().status === 'Completed') ? 'Ready at pickup station' : 'Pending preparation' }}
+                  </span>
                 </div>
               </div>
 
@@ -374,7 +383,9 @@ export interface DetailedOrder {
                 </div>
                 <div class="timeline-content">
                   <strong>Completed / Handed Over</strong>
-                  <span class="time-stamp">Delivered to customer</span>
+                  <span class="time-stamp">
+                    {{ currentOrder().status === 'Completed' ? 'Handed over / Delivered to customer' : 'Pending handover' }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -792,6 +803,15 @@ export interface DetailedOrder {
       }
     }
 
+    .item-img-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid #E2E8F0;
+      flex-shrink: 0;
+    }
+
     .item-emoji-box {
       font-size: 24px;
       width: 40px;
@@ -1166,10 +1186,40 @@ export interface DetailedOrder {
       font-weight: 700;
       border-radius: 10px;
     }
+
+    @media print {
+      .details-header,
+      .grid-side-col,
+      .top-actions,
+      .customer-contact-actions,
+      .btn-print-kot,
+      .btn-maps-link,
+      .btn-contact-call,
+      .btn-contact-chat {
+        display: none !important;
+      }
+
+      .items-summary-card {
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 !important;
+        padding: 4mm !important;
+        border: none !important;
+        box-shadow: none !important;
+        font-family: 'Courier New', monospace !important;
+        font-size: 11px !important;
+        color: #000 !important;
+      }
+
+      .item-row {
+        border-bottom: 1px dashed #000 !important;
+        padding: 4px 0 !important;
+      }
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class OrderDetailPageComponent implements OnInit {
+export class OrderDetailPageComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private orderApi = inject(OrderInboxApi);
@@ -1209,6 +1259,15 @@ export class OrderDetailPageComponent implements OnInit {
 
   readonly staffNotes = signal<string[]>([]);
   readonly newNote = signal<string>('');
+  private readonly destroy$ = new Subject<void>();
+
+  readonly maskedPhone = computed(() => {
+    const raw = this.currentOrder().customerPhone;
+    if (!raw) return 'Not available';
+    const clean = raw.trim();
+    if (clean.length <= 4) return clean;
+    return clean.slice(0, 3) + ' •••••• ' + clean.slice(-2);
+  });
 
   ngOnInit(): void {
     const id = this.orderId();
@@ -1219,9 +1278,16 @@ export class OrderDetailPageComponent implements OnInit {
       this.isLoading.set(false);
     }
 
-    this.authStore.tenantSwitched$.subscribe(() => {
-      this.router.navigate(['/order-inbox']);
-    });
+    this.authStore.tenantSwitched$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.router.navigate(['/order-inbox']);
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   fetchOrder(id: string): void {
@@ -1235,6 +1301,7 @@ export class OrderDetailPageComponent implements OnInit {
           const items: OrderItemDetail[] = (ord.items || []).map((it: any, idx: number) => ({
             id: String(idx + 1),
             name: it.name,
+            imageUrl: it.imageUrl || it.image || undefined,
             emoji: this.getItemEmoji(it.name),
             variant: it.meta || 'Standard',
             quantity: it.quantity,
@@ -1244,10 +1311,16 @@ export class OrderDetailPageComponent implements OnInit {
           }));
 
           const itemTotal = items.reduce((sum, item) => sum + item.totalPrice, 0) || ord.amount || 0;
-          const deliveryFee = ord.fulfilmentType === 'Home Delivery' ? 25 : 0;
-          const packagingFee = 10;
-          const tax = Math.round(itemTotal * 0.05);
+          const deliveryFee = ord.deliveryFee !== undefined ? ord.deliveryFee : (ord.fulfilmentType === 'Home Delivery' ? 25 : 0);
+          const packagingFee = ord.packagingFee !== undefined ? ord.packagingFee : 10;
+          const tax = ord.tax !== undefined ? ord.tax : Math.round(itemTotal * 0.05);
           const grandTotal = ord.amount || (itemTotal + deliveryFee + packagingFee + tax);
+
+          if (ord.staffNotes && Array.isArray(ord.staffNotes)) {
+            this.staffNotes.set(ord.staffNotes);
+          } else if (ord.notes) {
+            this.staffNotes.set([ord.notes]);
+          }
 
           this.currentOrder.set({
             id: ord.id || id,
@@ -1257,12 +1330,12 @@ export class OrderDetailPageComponent implements OnInit {
             customerName: ord.customerName || 'Customer',
             customerPhone: ord.customerPhone || '',
             fulfillmentType: ord.fulfilmentType || 'Home Delivery',
-            deliveryAddress: ord.deliveryAddress || (ord.fulfilmentType === 'Home Delivery' ? `${ord.customerName}'s Address, ${this.authStore.activeMerchant().locality}, ${this.authStore.activeMerchant().city}` : undefined),
-            distance: ord.distance || '2.0 km',
-            estimatedTime: '20-30 mins',
+            deliveryAddress: ord.deliveryAddress || (ord.fulfilmentType === 'Home Delivery' ? 'Address details pending from customer' : undefined),
+            distance: ord.distance || 'Customer address on record',
+            estimatedTime: ord.estimatedTime || ord.estimatedDeliveryTime || '20-30 mins',
             paymentMode: ord.paymentMode || 'UPI',
-            paymentRef: ord.paymentRef || `UPI-${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-            token: ord.token || ord.orderNumber?.replace(/[^0-9]/g, '').slice(-4) || '1234',
+            paymentRef: ord.paymentRef || 'Ref: Pending confirmation',
+            token: '', // Never store raw customer token in client state for client-side matching
             customerNote: ord.notes || ord.customerNote || '',
             itemTotal,
             deliveryFee,
@@ -1296,19 +1369,41 @@ export class OrderDetailPageComponent implements OnInit {
   }
 
   verifyToken(): void {
-    if (this.enteredToken().trim() === this.currentOrder().token) {
-      this.isTokenVerified.set(true);
-      this.tokenError.set(null);
-    } else {
-      this.tokenError.set('Invalid 4-digit token. Expected: ' + this.currentOrder().token);
+    const code = this.enteredToken().trim();
+    if (!code) {
+      this.tokenError.set('Please enter the customer token');
+      return;
     }
+    const orderId = this.currentOrder().id || this.orderId();
+    this.orderApi.verifyToken(orderId, code).subscribe({
+      next: (res) => {
+        if (res.verified) {
+          this.isTokenVerified.set(true);
+          this.tokenError.set(null);
+        } else {
+          this.tokenError.set(res.message || 'Invalid 4-digit token. Please check with customer.');
+        }
+      },
+      error: () => {
+        this.tokenError.set('Failed to verify token with server. Please retry.');
+      }
+    });
   }
 
   addStaffNote(): void {
     const n = this.newNote().trim();
     if (n) {
-      this.staffNotes.update(list => [...list, n]);
-      this.newNote.set('');
+      const orderId = this.currentOrder().id || this.orderId();
+      this.orderApi.addNote(orderId, n).subscribe({
+        next: () => {
+          this.staffNotes.update(list => [...list, n]);
+          this.newNote.set('');
+        },
+        error: () => {
+          this.staffNotes.update(list => [...list, n]);
+          this.newNote.set('');
+        }
+      });
     }
   }
 

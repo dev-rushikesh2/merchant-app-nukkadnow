@@ -1,4 +1,4 @@
-﻿import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+﻿import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -75,6 +75,22 @@ export class OnboardingListPageComponent {
   // Copy Feedback
   readonly copiedAppId = signal<boolean>(false);
 
+  // Validation state
+  readonly validationMessage = signal<string | null>(null);
+
+  readonly isCurrentStepValid = computed(() => {
+    switch (this.store.currentStep()) {
+      case 1: return this.store.isStep1Valid();
+      case 2: return this.store.isStep2Valid();
+      case 3: return this.store.isStep3Valid();
+      case 4: return this.store.isStep4Valid();
+      case 5: return this.store.isStep5Valid();
+      case 6: return this.store.isStep6Valid();
+      case 7: return this.store.isStep7Valid();
+      default: return true;
+    }
+  });
+
   // Details Modal in Status Screen
   readonly isDetailsModalOpen = signal<boolean>(false);
 
@@ -104,6 +120,11 @@ export class OnboardingListPageComponent {
   }
 
   onNext(): void {
+    if (!this.isCurrentStepValid()) {
+      this.validationMessage.set('Please fill in all mandatory fields before proceeding.');
+      return;
+    }
+    this.validationMessage.set(null);
     this.store.nextStep();
   }
 

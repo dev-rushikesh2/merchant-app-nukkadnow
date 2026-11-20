@@ -1,11 +1,12 @@
 ﻿<div class="merchant-seller-modes-container">
-  <div class="header-row">
-    <h2>SellerModes Management</h2>
+  <div class="header-row" style="margin-bottom: 20px;">
+    <h2 style="margin: 0; color: #0f172a; font-size: 20px;">Active Store Operational Modes</h2>
+    <p style="margin: 4px 0 0; color: #64748b; font-size: 13px;">Manage counter POS checkout, express online deliveries, table QR, and scheduled bulk pre-order channels.</p>
   </div>
   @if (store.loading()) {
-    <p>Loading records...</p>
+    <p>Loading operational modes...</p>
   } @else {
-    <div class="cards-grid">
+    <div class="cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
       @for (item of store.items(); track item.id) {
         <merchant-seller-modes-card [item]="item"></merchant-seller-modes-card>
       }

@@ -1,5 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { TenantStore } from '../tenant-context/tenant.store';
 import { OutletSwitcherStore } from '../outlet-context/outlet-switcher.store';
@@ -33,6 +34,7 @@ export class MerchantAuthStore {
   private readonly outletStore = inject(OutletSwitcherStore);
   private readonly tokenStorage = inject(TokenStorageService);
   private readonly authState = inject(AuthStateService);
+  private readonly router = inject(Router);
 
   // Observable event fired when merchant/tenant is switched so all components can reload
   readonly tenantSwitched$ = new Subject<string>();
@@ -180,9 +182,6 @@ export class MerchantAuthStore {
       error: err => {
         this.authError.set('Authentication error connecting to NukkadNow API Gateway.');
         this.isLoading.set(false);
-        // Apply context with tenant credentials
-        this.applyMerchantContext(account);
-        this.tenantSwitched$.next(account.tenantId);
       }
     });
   }
@@ -210,6 +209,7 @@ export class MerchantAuthStore {
     this.tokenStorage.clear();
     this.authState.logout();
     localStorage.removeItem('nk_active_tenant_id');
-    this.switchMerchant(this.seededMerchants[1]);
+    this.activeMerchant.set(null as any);
+    this.router.navigate(['/auth/login'], { queryParams: { mode: 'login' } });
   }
 }

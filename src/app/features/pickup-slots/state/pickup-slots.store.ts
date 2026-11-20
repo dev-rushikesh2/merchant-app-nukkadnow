@@ -1,10 +1,24 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { PickupSlotViewModel, DateCapacitySummary, PickupSlotStatus } from '../models/pickup-slots-view.model';
 
+const todayDate = new Date().toISOString().split('T')[0];
+const DEFAULT_SLOTS: PickupSlotViewModel[] = [
+  { id: 'slot-1', date: todayDate, startTime: '09:00 AM', endTime: '10:00 AM', bookedCount: 3, maxCapacity: 10, isBlocked: false, status: 'AVAILABLE', activeOrderIds: ['#ORD78289'] },
+  { id: 'slot-2', date: todayDate, startTime: '10:00 AM', endTime: '11:00 AM', bookedCount: 8, maxCapacity: 10, isBlocked: false, status: 'ALMOST_FULL', activeOrderIds: ['#ORD78290', '#ORD78291'] },
+  { id: 'slot-3', date: todayDate, startTime: '11:00 AM', endTime: '12:00 PM', bookedCount: 4, maxCapacity: 10, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] },
+  { id: 'slot-4', date: todayDate, startTime: '12:00 PM', endTime: '01:00 PM', bookedCount: 2, maxCapacity: 10, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] },
+  { id: 'slot-5', date: todayDate, startTime: '01:00 PM', endTime: '02:00 PM', bookedCount: 0, maxCapacity: 10, isBlocked: true, status: 'BLOCKED', activeOrderIds: [] },
+  { id: 'slot-6', date: todayDate, startTime: '04:00 PM', endTime: '05:00 PM', bookedCount: 5, maxCapacity: 12, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] },
+  { id: 'slot-7', date: todayDate, startTime: '05:00 PM', endTime: '06:00 PM', bookedCount: 12, maxCapacity: 12, isBlocked: false, status: 'FULL', activeOrderIds: [] },
+  { id: 'slot-8', date: todayDate, startTime: '06:00 PM', endTime: '07:00 PM', bookedCount: 9, maxCapacity: 15, isBlocked: false, status: 'ALMOST_FULL', activeOrderIds: [] },
+  { id: 'slot-9', date: todayDate, startTime: '07:00 PM', endTime: '08:00 PM', bookedCount: 6, maxCapacity: 15, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] },
+  { id: 'slot-10', date: todayDate, startTime: '08:00 PM', endTime: '09:00 PM', bookedCount: 1, maxCapacity: 10, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] }
+];
+
 @Injectable()
 export class PickupSlotsStore {
   readonly selectedDate = signal<string>(new Date().toISOString().split('T')[0]);
-  readonly slots = signal<PickupSlotViewModel[]>([]);
+  readonly slots = signal<PickupSlotViewModel[]>([...DEFAULT_SLOTS]);
   readonly filterStatus = signal<string>('ALL');
 
   readonly summary = computed<DateCapacitySummary>(() => {

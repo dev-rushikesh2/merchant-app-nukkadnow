@@ -44,4 +44,14 @@ export class OrderInboxApi {
   createWalkinOrder(payload: any): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/walkin`, payload);
   }
+
+  verifyToken(orderId: string, token: string): Observable<{ success: boolean; verified: boolean; message?: string }> {
+    const cleanId = encodeURIComponent(orderId.replace('#', ''));
+    return this.http.post<any>(`${this.baseUrl}/${cleanId}/verify-token`, { token });
+  }
+
+  addNote(orderId: string, note: string): Observable<{ success: boolean; notes: string; message?: string }> {
+    const cleanId = encodeURIComponent(orderId.replace('#', ''));
+    return this.http.post<any>(`${this.baseUrl}/${cleanId}/notes`, { note });
+  }
 }

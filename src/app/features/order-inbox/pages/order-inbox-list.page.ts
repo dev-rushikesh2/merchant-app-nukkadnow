@@ -24,6 +24,8 @@ export interface MerchantOrder {
 
 export interface PastOrder {
   id: string;
+  orderNumber?: string;
+  customerName?: string;
   date: string;
   time: string;
   amount: number;
@@ -67,7 +69,15 @@ export class OrderInboxPageComponent implements OnInit, OnDestroy {
   readonly pastOrders = signal<PastOrder[]>([]);
 
   // History date range
-  readonly dateRange = signal<string>('01 Nov 2026 – 30 Nov 2026');
+  readonly dateRange = signal<string>(this.getInitialDateRange());
+
+  private getInitialDateRange(): string {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const fmt = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    return `${fmt(start)} – ${fmt(end)}`;
+  }
 
   // Toast
   readonly toastMessage = signal<string | null>(null);
@@ -161,14 +171,14 @@ export class OrderInboxPageComponent implements OnInit, OnDestroy {
     this.historyFilter.set(hf);
   }
 
-  acceptOrder(orderId: string, event: Event) {
+  acceptOrder(orderId: string, event: Event, prepMinutes = 15) {
     event.stopPropagation();
-    this.orderApi.updateOrderStatus(orderId, 'Preparing', 15).subscribe({
+    this.orderApi.updateOrderStatus(orderId, 'Preparing', prepMinutes).subscribe({
       next: () => {
         this.orders.update(list =>
           list.map(o => (o.id === orderId ? { ...o, status: 'Preparing', stepIndex: 1 } : o))
         );
-        this.showToast(`Order ${orderId} accepted! Preparing timer started.`);
+        this.showToast(`Order ${orderId} accepted! Estimated prep time: ${prepMinutes} mins.`);
       },
       error: () => {
         this.showToast(`Error accepting order ${orderId}`);
@@ -209,7 +219,35 @@ export class OrderInboxPageComponent implements OnInit, OnDestroy {
   }
 
   exportReport() {
-    this.showToast('Exporting order report as CSV/Excel...');
+    const data = this.subTab() === 'inbox' ? this.orders() : this.pastOrders();
+    if (!data || data.length === 0) {
+      this.showToast('No orders available to export.');
+      return;
+    }
+
+    const headers = ['Order Number', 'Date', 'Time', 'Customer', 'Amount', 'Items Count', 'Status'];
+    const rows = data.map((o: any) => [
+      `"${o.orderNumber || o.id}"`,
+      `"${o.date || ''}"`,
+      `"${o.time || ''}"`,
+      `"${o.customerName || 'Customer'}"`,
+      o.amount,
+      o.itemsCount,
+      `"${o.status}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `nukkadnow_orders_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    this.showToast('Order report exported successfully as CSV!');
   }
 
   private showToast(msg: string) {

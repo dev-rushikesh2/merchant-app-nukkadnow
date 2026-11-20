@@ -2,7 +2,7 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { AuthFacade } from '../state/auth.facade';
+import { AuthStore } from '../state/auth.store';
 import { AuthStateService } from '@nukkadnow/auth-client';
 
 @Component({
@@ -14,20 +14,23 @@ import { AuthStateService } from '@nukkadnow/auth-client';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class VerifyOtpPageComponent implements OnInit, OnDestroy {
-  authFacade = inject(AuthFacade);
+  authStore = inject(AuthStore);
   authState = inject(AuthStateService);
   router = inject(Router);
   route = inject(ActivatedRoute);
 
-  phone = signal<string>('+91 98765 43210');
-  digits = signal<string[]>(['5', '2', '8', '7', '4', '6']);
-  countdown = signal<number>(28);
+  email = signal<string>('');
+  digits = signal<string[]>(['', '', '', '', '', '']);
+  countdown = signal<number>(30);
+  validationError = signal<string | null>(null);
   private timer: any;
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
-      if (params['phone']) {
-        this.phone.set(params['phone']);
+      const emailParam = params['email'] || params['phone'] || this.authStore.identifier() || '';
+      if (emailParam) {
+        this.email.set(emailParam);
+        this.authStore.setIdentifier(emailParam);
       }
     });
 
@@ -41,7 +44,7 @@ export class VerifyOtpPageComponent implements OnInit, OnDestroy {
   }
 
   startCountdown() {
-    this.countdown.set(28);
+    this.countdown.set(30);
     if (this.timer) clearInterval(this.timer);
     this.timer = setInterval(() => {
       if (this.countdown() > 0) {
@@ -69,6 +72,11 @@ export class VerifyOtpPageComponent implements OnInit, OnDestroy {
       current[index] = '';
       this.digits.set(current);
     }
+
+    // Auto verify if all 6 digits entered
+    if (current.every(d => d.length === 1)) {
+      this.verifyAndContinue();
+    }
   }
 
   onKeyDown(event: KeyboardEvent, index: number) {
@@ -81,22 +89,24 @@ export class VerifyOtpPageComponent implements OnInit, OnDestroy {
   }
 
   resendOtp() {
-    if (this.countdown() === 0) {
+    if (this.countdown() === 0 && !this.authStore.loading()) {
+      this.authStore.resendOtp();
       this.startCountdown();
     }
   }
 
-  changePhone() {
+  changeEmail() {
     this.router.navigate(['/auth/login']);
   }
 
   verifyAndContinue() {
-    this.authState.setUser({
-      id: 'merchant-patil-001',
-      phone: this.phone(),
-      name: 'Patil Fresh Sabji Mandi',
-      roles: ['merchant_owner']
-    });
-    this.router.navigate(['/dashboard']);
+    const code = this.digits().join('').trim();
+    if (code.length < 6) {
+      this.validationError.set('Please enter all 6 digits of the OTP');
+      return;
+    }
+
+    this.validationError.set(null);
+    this.authStore.verifyOtp(code);
   }
 }

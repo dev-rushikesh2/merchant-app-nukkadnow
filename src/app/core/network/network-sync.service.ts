@@ -1,4 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 export interface QueuedOfflineAction {
   id: string;
@@ -6,12 +8,15 @@ export interface QueuedOfflineAction {
   payload: any;
   timestamp: number;
   synced: boolean;
+  retryCount?: number;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class NetworkSyncService {
+  private readonly http = inject(HttpClient);
+
   readonly isOnline = signal<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   readonly queuedActions = signal<QueuedOfflineAction[]>([]);
   readonly isSyncing = signal<boolean>(false);
@@ -32,21 +37,40 @@ export class NetworkSyncService {
   queueAction(action: Omit<QueuedOfflineAction, 'id' | 'timestamp' | 'synced'>): void {
     const item: QueuedOfflineAction = {
       ...action,
-      id: `queue-${Date.now()}`,
+      id: `queue-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       timestamp: Date.now(),
-      synced: false
+      synced: false,
+      retryCount: 0
     };
     this.queuedActions.update(q => [...q, item]);
   }
 
-  syncQueue(): void {
-    if (this.queuedActions().length === 0) return;
-    this.isSyncing.set(true);
+  async syncQueue(): Promise<void> {
+    const actions = this.queuedActions();
+    if (actions.length === 0 || this.isSyncing()) return;
 
-    setTimeout(() => {
-      this.queuedActions.set([]);
-      this.isSyncing.set(false);
-      this.lastSyncTimestamp.set('Just now');
-    }, 800);
+    this.isSyncing.set(true);
+    const remaining: QueuedOfflineAction[] = [];
+
+    for (const action of actions) {
+      try {
+        if (action.type === 'DRAFT_WALKIN_ORDER') {
+          await this.http.post(`${environment.apiGatewayUrl}/merchant/orders/walkin`, action.payload).toPromise();
+        } else if (action.type === 'UPDATE_LOCAL_STOCK') {
+          await this.http.post(`${environment.apiGatewayUrl}/merchant/inventory/adjust`, action.payload).toPromise();
+        }
+        // Successfully synced, omitted from remaining
+      } catch (err) {
+        // Failed: preserve in queue with incremented retry count
+        remaining.push({
+          ...action,
+          retryCount: (action.retryCount || 0) + 1
+        });
+      }
+    }
+
+    this.queuedActions.set(remaining);
+    this.isSyncing.set(false);
+    this.lastSyncTimestamp.set(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   }
 }
