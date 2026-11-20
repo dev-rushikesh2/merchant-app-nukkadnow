@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthFacade } from '../state/auth.facade';
+import { AuthStateService } from '@nukkadnow/auth-client';
 
 @Component({
   selector: 'merchant-verify-otp-page',
@@ -14,6 +15,7 @@ import { AuthFacade } from '../state/auth.facade';
 })
 export class VerifyOtpPageComponent implements OnInit, OnDestroy {
   authFacade = inject(AuthFacade);
+  authState = inject(AuthStateService);
   router = inject(Router);
   route = inject(ActivatedRoute);
 
@@ -89,7 +91,12 @@ export class VerifyOtpPageComponent implements OnInit, OnDestroy {
   }
 
   verifyAndContinue() {
-    // Navigate into onboarding or dashboard
-    this.router.navigate(['/onboarding']);
+    this.authState.setUser({
+      id: 'merchant-patil-001',
+      phone: this.phone(),
+      name: 'Patil Fresh Sabji Mandi',
+      roles: ['merchant_owner']
+    });
+    this.router.navigate(['/dashboard']);
   }
 }

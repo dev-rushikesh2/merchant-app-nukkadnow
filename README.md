@@ -18,6 +18,18 @@ The standalone web and mobile merchant management application for NukkadNow quic
 
 ## 📋 Comprehensive Changelog & Architectural Log
 
+### [Release: 2026-11-19] — Android Native APK & Mandatory Splash / Authentication Gate
+- **Capacitor 6 Android Integration:** Configured `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, and `@capacitor/splash-screen` with `appId: com.nukkadnow.merchant`.
+- **Mandatory Splash Screen & Auth Gate:**
+  - Launching the Android APK displays the native brand splash screen (`#2E1065` background).
+  - Webview initial landing enforces the Splash Screen view mode with 3D storefront vector illustration and two primary actions: **"Login to Shop"** and **"Register New Shop"**.
+  - All store management routes (`/dashboard`, `/order-inbox`, `/walkin-orders`, `/queue-board`, `/catalogue`, `/inventory`, `/preorders`, `/outlets`, etc.) are protected with `merchantAuthGuard`.
+  - Unauthenticated visits automatically redirect to `/auth/login` (splash view mode).
+  - Verified OTP and Demo Shop logins persist session credentials (`nk_merchant_user`) to local storage and route immediately to `/dashboard`.
+- **Standalone Android APK Generation:**
+  - Compiled using Android Studio toolchain (Microsoft OpenJDK 17 + Android SDK 34 + Gradle 8.2.1).
+  - Generated output debug APK: `c:\Nukkadnow\NukkadNow-Merchant.apk` (4.20 MB).
+
 ### [Release: 2026-11-18] — Dynamic POS Billing, OpenStreetMap Leaflet Geofencing & Audio Chime Alerts
 
 #### 1. Delivery & Fleet Management with Real OpenStreetMap Leaflet Map (`/delivery-settings`)
