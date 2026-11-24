@@ -86,7 +86,7 @@ import { MerchantBottomNavComponent } from '../bottom-nav/merchant-bottom-nav.co
 
     .layout-content {
       flex: 1;
-      overflow-y: auto;
+      overflow-y: visible;
       padding: clamp(12px, 2.5vw, 24px);
     }
 

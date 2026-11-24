@@ -1424,7 +1424,7 @@ export class OrderDetailPageComponent implements OnInit, OnDestroy {
   }
 
   openMaps(): void {
-    const query = encodeURIComponent(`${this.currentOrder().deliveryAddress || this.authStore.activeMerchant().city}`);
+    const query = encodeURIComponent(`${this.currentOrder().deliveryAddress || (this.authStore.activeMerchant()?.city ?? '')}`);
     window.open(`https://maps.google.com/?q=${query}`, '_blank');
   }
 

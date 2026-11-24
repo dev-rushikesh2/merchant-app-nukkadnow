@@ -104,7 +104,7 @@ export class MerchantAuthStore {
     const token = this.tokenStorage.getAccessToken();
     if (!token) return;
 
-    const authUser = this.authState.currentUser();
+    const authUser = this.authState.user();
     if (!authUser?.tenantId) return;
 
     const merchant: ActiveMerchant = {

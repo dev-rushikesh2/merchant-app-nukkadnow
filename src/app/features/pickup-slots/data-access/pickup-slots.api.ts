@@ -9,7 +9,7 @@ export class PickupSlotsApi {
   private readonly baseUrl = '/api/v1/merchant/pickup-slots';
 
   fetchSlots(date?: string): Observable<any> {
-    const params = date ? { date } : {};
+    const params: Record<string, string> = date ? { date } : {};
     return this.http.get<any>(this.baseUrl, params).pipe(
       catchError(() => of([]))
     );

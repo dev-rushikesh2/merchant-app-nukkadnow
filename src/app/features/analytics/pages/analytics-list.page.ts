@@ -185,7 +185,7 @@ export class AnalyticsListPageComponent implements OnInit, OnDestroy {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nukkadnow-report-${this.authStore.activeMerchant().tenantId}.csv`;
+    a.download = `nukkadnow-report-${this.authStore.activeMerchant()?.tenantId ?? 'merchant'}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     this.showToast('Exported bank-reconciled financial CSV report.');

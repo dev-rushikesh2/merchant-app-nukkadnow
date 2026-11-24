@@ -1,4 +1,4 @@
-﻿import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { CatalogueApi } from '../data-access/catalogue.api';
 import { ProductItem } from '../models/catalogue-view.model';
 import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
@@ -21,11 +21,11 @@ export class CatalogueStore {
   }
 
   private init(): void {
-    const outletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+    const outletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
     this.loadProducts(outletId);
 
     this.authStore.tenantSwitched$.subscribe(() => {
-      const newOutletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+      const newOutletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
       this.loadProducts(newOutletId);
     });
   }

@@ -83,7 +83,7 @@ export class DashboardListPageComponent implements OnInit, OnDestroy {
     this.dashboardApi.fetchDashboardSummary().subscribe({
       next: (data: DashboardApiResponse) => {
         if (data) {
-          this.shopName.set(data.shopName || this.authStore.activeMerchant().merchantName);
+          this.shopName.set(data.shopName || this.authStore.activeMerchant()?.merchantName || '');
           this.greeting.set(data.greeting || 'Good Day');
           this.selectedTimeframe.set(data.selectedTimeframe || 'Today');
           this.performance.set(data.performance || { sales: 0, orders: 0, customers: 0, growthPercent: 0 });
@@ -97,7 +97,7 @@ export class DashboardListPageComponent implements OnInit, OnDestroy {
       error: () => {
         // Fallback to active tenant identity if network unavailable
         const active = this.authStore.activeMerchant();
-        this.shopName.set(active.merchantName);
+        this.shopName.set(active?.merchantName ?? '');
         this.isLoading.set(false);
       }
     });

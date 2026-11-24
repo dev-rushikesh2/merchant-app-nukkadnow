@@ -2,13 +2,39 @@
 @import './typography.scss';
 @import 'leaflet/dist/leaflet.css';
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
+  width: 100%;
+  min-height: 100%;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: var(--font-family-sans);
   background-color: var(--color-background);
   color: var(--color-secondary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+merchant-root {
+  display: block;
+  width: 100%;
+  min-height: 100%;
 }

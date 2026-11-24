@@ -24,6 +24,7 @@ export class StaffAccessStore {
 
   private reloadForTenant(): void {
     const active = this.authStore.activeMerchant();
+    if (!active) return;
     const ownerStaff: StaffMemberViewModel = {
       id: `staff-${active.id}`,
       name: active.fullName,

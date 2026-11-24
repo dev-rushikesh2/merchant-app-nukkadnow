@@ -99,6 +99,11 @@ export class WalkinOrdersPageComponent implements OnInit, OnDestroy {
   loadCatalogProducts(): void {
     this.isLoading.set(true);
     const activeMerchant = this.authStore.activeMerchant();
+    if (!activeMerchant) {
+      this.products.set([]);
+      this.isLoading.set(false);
+      return;
+    }
     const activeTenant = activeMerchant.tenantId;
     const outletId = activeMerchant.outletId;
     this.catalogueApi.fetchProducts(outletId).subscribe({

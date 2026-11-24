@@ -1,4 +1,4 @@
-﻿import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { InventoryItem, StockMovementRecord, StockAdjustmentReason } from '../models/inventory-view.model';
 import { InventoryApi } from '../data-access/inventory.api';
 import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
@@ -22,11 +22,11 @@ export class InventoryStore {
   }
 
   private init(): void {
-    const outletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+    const outletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
     this.loadInventory(outletId);
 
     this.authStore.tenantSwitched$.subscribe(() => {
-      const newOutletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+      const newOutletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
       this.loadInventory(newOutletId);
     });
   }

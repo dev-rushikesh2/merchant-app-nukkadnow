@@ -9,7 +9,7 @@ export class DeliverySettingsRepository {
   private api = inject(DeliverySettingsApi);
   private mapper = inject(DeliverySettingsMapper);
 
-  getList(): Observable<any[]> {
-    return this.api.fetchList();
+  getList(): Observable<any> {
+    return this.api.fetchSettings();
   }
 }

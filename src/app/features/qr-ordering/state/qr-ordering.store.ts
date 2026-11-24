@@ -26,6 +26,7 @@ export class QrOrderingStore {
 
   private regenerateForTenant(): void {
     const active = this.authStore.activeMerchant();
+    if (!active) return;
     const slug = active.merchantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const baseUrl = `https://nukkadnow.in/m/${slug}`;
 

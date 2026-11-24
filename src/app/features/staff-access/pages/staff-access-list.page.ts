@@ -80,6 +80,7 @@ export class StaffAccessListPageComponent implements OnInit, OnDestroy {
 
   private syncStaffWithActiveMerchant(): void {
     const m = this.authStore.activeMerchant();
+    if (!m) return;
     const owner: StaffMember = {
       id: m.id,
       name: m.fullName,
@@ -160,7 +161,7 @@ export class StaffAccessListPageComponent implements OnInit, OnDestroy {
       phone,
       role: this.newRole(),
       pin,
-      outlet: m.merchantName,
+      outlet: m?.merchantName ?? '',
       isActive: true,
       lastActive: 'Just invited'
     };

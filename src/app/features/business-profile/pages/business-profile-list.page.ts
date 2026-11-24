@@ -1,4 +1,4 @@
-﻿import { Component, signal, inject, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
+import { Component, signal, inject, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -106,7 +106,7 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
           this.email.set(p.email || '');
           this.tagline.set(p.tagline || p.description || '');
           this.addressStreet.set(p.addressStreet || p.addressLine || '');
-          this.city.set(p.city || this.authStore.activeMerchant().city || 'Nagpur');
+          this.city.set(p.city || this.authStore.activeMerchant()?.city || 'Nagpur');
           this.pincode.set(p.pincode || '440010');
           this.gstin.set(p.gstin || '');
           this.fssai.set(p.fssai || '');
@@ -119,12 +119,14 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
         } else {
           // Bind active tenant values
           const active = this.authStore.activeMerchant();
-          this.shopName.set(active.merchantName);
-          this.ownerName.set(active.fullName);
-          this.phone.set(active.phoneNumber);
-          this.email.set(active.email);
-          this.businessCategory.set(active.category);
-          this.city.set(active.city);
+          if (active) {
+            this.shopName.set(active.merchantName);
+            this.ownerName.set(active.fullName);
+            this.phone.set(active.phoneNumber);
+            this.email.set(active.email);
+            this.businessCategory.set('Retail Store');
+            this.city.set(active.city);
+          }
           this.gstin.set('');
           this.fssai.set('');
         }
@@ -132,12 +134,14 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
       },
       error: () => {
         const active = this.authStore.activeMerchant();
-        this.shopName.set(active.merchantName);
-        this.ownerName.set(active.fullName);
-        this.phone.set(active.phoneNumber);
-        this.email.set(active.email);
-        this.businessCategory.set(active.category);
-        this.city.set(active.city);
+        if (active) {
+          this.shopName.set(active.merchantName);
+          this.ownerName.set(active.fullName);
+          this.phone.set(active.phoneNumber);
+          this.email.set(active.email);
+          this.businessCategory.set('Retail Store');
+          this.city.set(active.city);
+        }
         this.gstin.set('');
         this.fssai.set('');
         this.isLoading.set(false);
@@ -147,9 +151,9 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
 
   toggleShopLive() {
     this.isShopLiveOpen.update(v => !v);
-    const outletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+    const outletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
     this.api.updateOperatingHours(outletId, { isShopLiveOpen: this.isShopLiveOpen() }).subscribe();
-    this.showToast(`Shop status updated: ${this.isShopLiveOpen() ? '🟢 OPEN' : '🔴 TEMPORARILY CLOSED'}.`);
+    this.showToast(`Shop status updated: ${this.isShopLiveOpen() ? '?? OPEN' : '?? TEMPORARILY CLOSED'}.`);
   }
 
   toggleDayOpen(index: number) {
@@ -162,7 +166,7 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
     this.weeklySchedule.update(list =>
       list.map(d => ({ ...d, openTime: time.openTime, closeTime: time.closeTime }))
     );
-    this.showToast(`Applied ${time.openTime} – ${time.closeTime} to all 7 days.`);
+    this.showToast(`Applied ${time.openTime} � ${time.closeTime} to all 7 days.`);
   }
 
   addStorePhoto() {
@@ -222,7 +226,7 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
   }
 
   saveHours() {
-    const outletId = this.outletStore.activeOutletId() || this.authStore.activeMerchant().outletId;
+    const outletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
     this.api.updateOperatingHours(outletId, {
       isShopLiveOpen: this.isShopLiveOpen(),
       weeklySchedule: this.weeklySchedule()
