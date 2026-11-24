@@ -15,11 +15,24 @@ import { ButtonComponent } from '@nukkadnow/ui';
 export class PickupSlotsListPageComponent {
   readonly store = inject(PickupSlotsStore);
 
-  readonly dates = [
-    { label: 'Today (11 Nov)', value: '2026-11-11' },
-    { label: 'Tomorrow (12 Nov)', value: '2026-11-12' },
-    { label: 'Thursday (13 Nov)', value: '2026-11-13' }
-  ];
+  // Generate next 3 dates dynamically so labels are always current.
+  readonly dates = (() => {
+    const result = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    for (let i = 0; i < 3; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const val = d.toISOString().split('T')[0];
+      const label = i === 0
+        ? `Today (${d.getDate()} ${monthNames[d.getMonth()]})`
+        : i === 1
+        ? `Tomorrow (${d.getDate()} ${monthNames[d.getMonth()]})`
+        : `${dayNames[d.getDay()]} (${d.getDate()} ${monthNames[d.getMonth()]})`;
+      result.push({ label, value: val });
+    }
+    return result;
+  })();
 
   selectDate(val: string): void {
     this.store.selectDate(val);

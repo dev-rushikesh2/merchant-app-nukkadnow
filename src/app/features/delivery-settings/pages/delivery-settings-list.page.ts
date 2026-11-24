@@ -1,4 +1,4 @@
-import { 
+﻿import { 
   Component, 
   inject, 
   signal, 
@@ -16,6 +16,7 @@ import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import * as L from 'leaflet';
 import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
+import { DeliverySettingsApi } from '../data-access/delivery-settings.api';
 
 export interface StoreRider {
   id: string;
@@ -35,39 +36,13 @@ export interface MerchantGeoLocation {
   keyAreas: string[];
 }
 
-const MERCHANT_GEO_DATA: Record<string, MerchantGeoLocation> = {
-  'merchant-sabji-001': {
-    lat: 21.1458,
-    lng: 79.0882,
-    locality: 'Sitabuldi Wholesale Mandi',
-    city: 'Nagpur',
-    pincode: '440012',
-    keyAreas: ['Sitabuldi', 'Dhantoli', 'Dharampeth', 'Mahal', 'Ramdaspeth', 'Civil Lines', 'Sadar']
-  },
-  'merchant-kirana-002': {
-    lat: 20.7002,
-    lng: 77.0082,
-    locality: 'Civil Lines Market',
-    city: 'Akola',
-    pincode: '444001',
-    keyAreas: ['Civil Lines', 'Ramdaspeth', 'Toshniwal Layout', 'Jatharpeth', 'Gorakshan Road', 'Malkapur']
-  },
-  'merchant-garguti-003': {
-    lat: 20.7035,
-    lng: 77.0125,
-    locality: 'Ramdaspeth Heights',
-    city: 'Akola',
-    pincode: '444005',
-    keyAreas: ['Ramdaspeth', 'Tilak Road', 'Ratanlal Plot', 'Old City', 'Kaulkhed', 'Civil Lines']
-  },
-  'merchant-sweets-004': {
-    lat: 21.1415,
-    lng: 79.0655,
-    locality: 'West High Court Road, Dharampeth',
-    city: 'Nagpur',
-    pincode: '440010',
-    keyAreas: ['Dharampeth', 'Gokulpeth', 'Shivaji Nagar', 'Ram Nagar', 'Bajaj Nagar', 'Laxmi Nagar', 'Sitabuldi']
-  }
+const DEFAULT_GEO: MerchantGeoLocation = {
+  lat: 20.7002,
+  lng: 77.0082,
+  locality: '',
+  city: '',
+  pincode: '',
+  keyAreas: []
 };
 
 @Component({
@@ -83,6 +58,8 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
   private platformId = inject(PLATFORM_ID);
   private sub = new Subscription();
 
+  private readonly deliveryApi = inject(DeliverySettingsApi);
+
   // Service toggle
   readonly isDeliveryEnabled = signal<boolean>(true);
 
@@ -96,8 +73,8 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
   // Fullscreen map mode
   readonly isMapFullscreen = signal<boolean>(false);
 
-  // Supported Pincodes
-  readonly pincodes = signal<string[]>(['440010', '440012', '440015', '440022']);
+  // Supported Pincodes -- loaded from API; empty until populated.
+  readonly pincodes = signal<string[]>([]);
   readonly newPincode = signal<string>('');
 
   // Store Riders Roster
@@ -110,13 +87,10 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
   // Toast
   readonly toast = signal<string | null>(null);
 
-  // Active Merchant Geo Location
-  readonly activeGeo = computed<MerchantGeoLocation>(() => {
-    const tenantId = this.authStore.activeMerchant().tenantId;
-    return MERCHANT_GEO_DATA[tenantId] || MERCHANT_GEO_DATA['merchant-kirana-002'];
-  });
+  // Active Merchant Geo Location -- loaded from backend delivery settings.
+  readonly activeGeo = signal<MerchantGeoLocation>(DEFAULT_GEO);
 
-  // Calculated Coverage Area in sq km (π * r²)
+  // Calculated Coverage Area in sq km (Ï€ * rÂ²)
   readonly coverageAreaSqKm = computed<number>(() => {
     const r = this.deliveryRadiusKm();
     return Math.round(Math.PI * r * r);
@@ -128,18 +102,11 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
   private radiusCircle: L.Circle | null = null;
 
   ngOnInit(): void {
-    // Sync default pincode from active merchant
-    const geo = this.activeGeo();
-    if (!this.pincodes().includes(geo.pincode)) {
-      this.pincodes.update(list => [geo.pincode, ...list]);
-    }
+    this.loadDeliverySettings();
 
     this.sub.add(
       this.authStore.tenantSwitched$.subscribe(() => {
-        const nextGeo = this.activeGeo();
-        if (!this.pincodes().includes(nextGeo.pincode)) {
-          this.pincodes.set([nextGeo.pincode, '440010', '440012', '440015']);
-        }
+        this.loadDeliverySettings();
         this.updateMapPositionAndRadius();
       })
     );
@@ -183,7 +150,7 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
     // Add crisp OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '© OpenStreetMap'
+      attribution: 'Â© OpenStreetMap'
     }).addTo(this.map);
 
     // Custom animated Store Pin
@@ -193,7 +160,7 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
         <div class="store-pin-beacon">
           <div class="beacon-pulse"></div>
           <div class="beacon-core">
-            <span class="beacon-emoji">${merchant.avatarIcon || '🏪'}</span>
+            <span class="beacon-emoji">&#x1F3EA;</span>
           </div>
           <div class="beacon-arrow"></div>
         </div>
@@ -207,8 +174,8 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
 
     this.storeMarker.bindPopup(`
       <div class="store-map-popup">
-        <strong class="popup-title">${merchant.merchantName}</strong>
-        <p class="popup-address">📍 ${geo.locality}, ${geo.city}</p>
+        <strong class="popup-title">${merchant?.merchantName ?? 'Your Store'}</strong>
+        <p class="popup-address">ðŸ“ ${geo.locality}, ${geo.city}</p>
         <span class="popup-radius-tag">Delivery Geofence: ${this.deliveryRadiusKm()} km</span>
       </div>
     `);
@@ -255,7 +222,7 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
           <div class="store-pin-beacon">
             <div class="beacon-pulse"></div>
             <div class="beacon-core">
-              <span class="beacon-emoji">${merchant.avatarIcon || '🏪'}</span>
+              <span class="beacon-emoji">&#x1F3EA;</span>
             </div>
             <div class="beacon-arrow"></div>
           </div>
@@ -267,8 +234,8 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
       this.storeMarker.setIcon(newIcon);
       this.storeMarker.setPopupContent(`
         <div class="store-map-popup">
-          <strong class="popup-title">${merchant.merchantName}</strong>
-          <p class="popup-address">📍 ${geo.locality}, ${geo.city}</p>
+          <strong class="popup-title">${merchant?.merchantName ?? 'Your Store'}</strong>
+          <p class="popup-address">ðŸ“ ${geo.locality}, ${geo.city}</p>
           <span class="popup-radius-tag">Delivery Geofence: ${this.deliveryRadiusKm()} km</span>
         </div>
       `);
@@ -311,8 +278,8 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
         const merchant = this.authStore.activeMerchant();
         this.storeMarker.setPopupContent(`
           <div class="store-map-popup">
-            <strong class="popup-title">${merchant.merchantName}</strong>
-            <p class="popup-address">📍 ${geo.locality}, ${geo.city}</p>
+            <strong class="popup-title">${merchant?.merchantName ?? 'Your Store'}</strong>
+            <p class="popup-address">ðŸ“ ${geo.locality}, ${geo.city}</p>
             <span class="popup-radius-tag">Delivery Geofence: ${cleanKm} km</span>
           </div>
         `);
@@ -415,8 +382,57 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
     this.showToast(`Delivery geofence (${this.deliveryRadiusKm()} km) and pricing rules saved!`);
   }
 
+  /**
+   * Loads delivery settings from the backend.
+   * Populates all configuration signals from the API response.
+   * On error, signals remain at their initial empty/zero values.
+   */
+  private loadDeliverySettings(): void {
+    this.deliveryApi.fetchSettings().subscribe({
+      next: (data) => {
+        if (!data) return;
+
+        this.isDeliveryEnabled.set(data.isDeliveryEnabled ?? true);
+        this.deliveryRadiusKm.set(data.deliveryRadiusKm ?? 6.0);
+        this.minOrderAmount.set(data.minOrderAmount ?? 0);
+        this.baseDeliveryFee.set(data.baseDeliveryFee ?? 0);
+        this.freeDeliveryAbove.set(data.freeDeliveryAbove ?? 0);
+        this.estDeliveryMinutes.set(data.estDeliveryMinutes ?? 0);
+        this.pincodes.set(data.pincodes ?? []);
+
+        if (data.riders?.length) {
+          this.riders.set(data.riders.map(r => ({
+            id: r.id,
+            name: r.name,
+            phone: r.phone,
+            vehicle: r.vehicle,
+            status: (r.status as StoreRider['status']) ?? 'Off Shift',
+            activeOrdersCount: r.activeOrdersCount ?? 0
+          })));
+        }
+
+        if (data.geo) {
+          this.activeGeo.set({
+            lat: data.geo.lat,
+            lng: data.geo.lng,
+            locality: data.geo.locality ?? '',
+            city: data.geo.city ?? '',
+            pincode: data.geo.pincode ?? '',
+            keyAreas: data.geo.keyAreas ?? []
+          });
+          // Update map position if the map is already initialised
+          this.updateMapPositionAndRadius();
+        }
+      },
+      error: () => {
+        // Settings unavailable -- signals stay at defaults; map shows DEFAULT_GEO
+      }
+    });
+  }
+
   private showToast(msg: string): void {
     this.toast.set(msg);
     setTimeout(() => this.toast.set(null), 2800);
   }
 }
+

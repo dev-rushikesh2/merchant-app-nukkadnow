@@ -2,20 +2,24 @@ import { Injectable, signal, inject } from '@angular/core';
 import { GstInvoice, SettlementPayout } from '../models/billing-view.model';
 import { exportToCsv } from '../../analytics/utils/csv-exporter';
 import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
+import { BillingApi } from '../data-access/billing.api';
 
+/**
+ * BillingStore -- real data only.
+ * Fetches invoices and settlements from the backend BillingApi.
+ * No hardcoded invoices or GSTIN values.
+ */
 @Injectable()
 export class BillingStore {
   private authStore = inject(MerchantAuthStore);
+  private billingApi = inject(BillingApi);
 
   readonly invoices = signal<GstInvoice[]>([]);
   readonly settlements = signal<SettlementPayout[]>([]);
-  readonly merchantGstin = signal<string>('27AADCS5432K1Z9');
+  readonly merchantGstin = signal<string>('');
+  readonly isLoading = signal<boolean>(false);
 
   constructor() {
-    this.init();
-  }
-
-  private init(): void {
     this.loadBilling();
     this.authStore.tenantSwitched$.subscribe(() => {
       this.loadBilling();
@@ -23,43 +27,22 @@ export class BillingStore {
   }
 
   loadBilling(): void {
-    const active = this.authStore.activeMerchant();
-    const gstinMap: Record<string, string> = {
-      'merchant-sabji-001': '27AABCP9821M1Z5',
-      'merchant-kirana-002': '27AADCS5432K1Z9',
-      'merchant-garguti-003': '27AGNPK8831A1Z2',
-      'merchant-sweets-004': '27AAECM6641J1Z8'
-    };
-    this.merchantGstin.set(gstinMap[active.tenantId] || '27AADCS5432K1Z9');
-
-    // Generate real tenant billing ledger
-    this.invoices.set([
-      {
-        invoiceNumber: `NNK-INV-2026-10-${active.tenantId.slice(-3)}`,
-        period: 'October 2026',
-        invoiceDate: '2026-11-01',
-        merchantGstin: this.merchantGstin(),
-        platformHsn: '998314',
-        subtotalPaise: 99900,
-        cgstPaise: 8991,
-        sgstPaise: 8991,
-        totalPaise: 117882,
-        paymentStatus: 'PAID'
+    this.isLoading.set(true);
+    this.billingApi.fetchBillingDetails().subscribe({
+      next: (res: any) => {
+        this.invoices.set(res?.invoices || []);
+        this.settlements.set(res?.settlements || []);
+        if (res?.merchantGstin) {
+          this.merchantGstin.set(res.merchantGstin);
+        }
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.invoices.set([]);
+        this.settlements.set([]);
+        this.isLoading.set(false);
       }
-    ]);
-
-    this.settlements.set([
-      {
-        utrNumber: `AXIS${Date.now().toString().slice(-8)}`,
-        settlementDate: '2026-11-16',
-        orderCount: 18,
-        grossOrdersPaise: 640000,
-        platformFeeDeductedPaise: 12800,
-        netCreditedPaise: 627200,
-        bankAccountMasked: 'Bank of India ••••••2201',
-        status: 'SETTLED'
-      }
-    ]);
+    });
   }
 
   downloadInvoicePdf(inv: GstInvoice): void {

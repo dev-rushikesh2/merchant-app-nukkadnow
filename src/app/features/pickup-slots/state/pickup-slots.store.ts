@@ -1,25 +1,20 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { PickupSlotViewModel, DateCapacitySummary, PickupSlotStatus } from '../models/pickup-slots-view.model';
+import { PickupSlotsApi } from '../data-access/pickup-slots.api';
 
-const todayDate = new Date().toISOString().split('T')[0];
-const DEFAULT_SLOTS: PickupSlotViewModel[] = [
-  { id: 'slot-1', date: todayDate, startTime: '09:00 AM', endTime: '10:00 AM', bookedCount: 3, maxCapacity: 10, isBlocked: false, status: 'AVAILABLE', activeOrderIds: ['#ORD78289'] },
-  { id: 'slot-2', date: todayDate, startTime: '10:00 AM', endTime: '11:00 AM', bookedCount: 8, maxCapacity: 10, isBlocked: false, status: 'ALMOST_FULL', activeOrderIds: ['#ORD78290', '#ORD78291'] },
-  { id: 'slot-3', date: todayDate, startTime: '11:00 AM', endTime: '12:00 PM', bookedCount: 4, maxCapacity: 10, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] },
-  { id: 'slot-4', date: todayDate, startTime: '12:00 PM', endTime: '01:00 PM', bookedCount: 2, maxCapacity: 10, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] },
-  { id: 'slot-5', date: todayDate, startTime: '01:00 PM', endTime: '02:00 PM', bookedCount: 0, maxCapacity: 10, isBlocked: true, status: 'BLOCKED', activeOrderIds: [] },
-  { id: 'slot-6', date: todayDate, startTime: '04:00 PM', endTime: '05:00 PM', bookedCount: 5, maxCapacity: 12, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] },
-  { id: 'slot-7', date: todayDate, startTime: '05:00 PM', endTime: '06:00 PM', bookedCount: 12, maxCapacity: 12, isBlocked: false, status: 'FULL', activeOrderIds: [] },
-  { id: 'slot-8', date: todayDate, startTime: '06:00 PM', endTime: '07:00 PM', bookedCount: 9, maxCapacity: 15, isBlocked: false, status: 'ALMOST_FULL', activeOrderIds: [] },
-  { id: 'slot-9', date: todayDate, startTime: '07:00 PM', endTime: '08:00 PM', bookedCount: 6, maxCapacity: 15, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] },
-  { id: 'slot-10', date: todayDate, startTime: '08:00 PM', endTime: '09:00 PM', bookedCount: 1, maxCapacity: 10, isBlocked: false, status: 'AVAILABLE', activeOrderIds: [] }
-];
-
+/**
+ * PickupSlotsStore -- real data only.
+ * Fetches slots from the backend via PickupSlotsApi.
+ * No hardcoded DEFAULT_SLOTS.
+ */
 @Injectable()
 export class PickupSlotsStore {
+  private readonly api = inject(PickupSlotsApi);
+
   readonly selectedDate = signal<string>(new Date().toISOString().split('T')[0]);
-  readonly slots = signal<PickupSlotViewModel[]>([...DEFAULT_SLOTS]);
+  readonly slots = signal<PickupSlotViewModel[]>([]);
   readonly filterStatus = signal<string>('ALL');
+  readonly isLoading = signal<boolean>(false);
 
   readonly summary = computed<DateCapacitySummary>(() => {
     const list = this.slots();
@@ -47,20 +42,34 @@ export class PickupSlotsStore {
   readonly filteredSlots = computed(() => {
     const list = this.slots();
     const filter = this.filterStatus();
-    if (filter === 'AVAILABLE') {
-      return list.filter(s => !s.isBlocked && s.bookedCount < s.maxCapacity);
-    }
-    if (filter === 'FULL') {
-      return list.filter(s => !s.isBlocked && s.bookedCount >= s.maxCapacity);
-    }
-    if (filter === 'BLOCKED') {
-      return list.filter(s => s.isBlocked);
-    }
+    if (filter === 'AVAILABLE') return list.filter(s => !s.isBlocked && s.bookedCount < s.maxCapacity);
+    if (filter === 'FULL') return list.filter(s => !s.isBlocked && s.bookedCount >= s.maxCapacity);
+    if (filter === 'BLOCKED') return list.filter(s => s.isBlocked);
     return list;
   });
 
+  constructor() {
+    this.loadSlots();
+  }
+
+  loadSlots(): void {
+    this.isLoading.set(true);
+    this.api.fetchSlots(this.selectedDate()).subscribe({
+      next: (res: any) => {
+        const data = Array.isArray(res) ? res : (res?.data || res?.slots || []);
+        this.slots.set(data);
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.slots.set([]);
+        this.isLoading.set(false);
+      }
+    });
+  }
+
   selectDate(dateStr: string): void {
     this.selectedDate.set(dateStr);
+    this.loadSlots();
   }
 
   setFilter(filter: string): void {
@@ -68,74 +77,71 @@ export class PickupSlotsStore {
   }
 
   toggleSlotBlocked(slotId: string): void {
+    const slot = this.slots().find(s => s.id === slotId);
+    if (!slot) return;
+    const newBlocked = !slot.isBlocked;
+
+    // Optimistic update; persist to backend
     this.slots.update(list =>
-      list.map(slot => {
-        if (slot.id !== slotId) return slot;
-        const newBlocked = !slot.isBlocked;
-        let newStatus: PickupSlotStatus = 'AVAILABLE';
-        if (newBlocked) {
-          newStatus = 'BLOCKED';
-        } else if (slot.bookedCount >= slot.maxCapacity) {
-          newStatus = 'FULL';
-        } else if (slot.bookedCount >= slot.maxCapacity * 0.8) {
-          newStatus = 'ALMOST_FULL';
-        }
-        return {
-          ...slot,
-          isBlocked: newBlocked,
-          status: newStatus
-        };
+      list.map(s => s.id !== slotId ? s : {
+        ...s,
+        isBlocked: newBlocked,
+        status: this.deriveStatus({ ...s, isBlocked: newBlocked })
       })
     );
+
+    this.api.updateSlot(slotId, { isBlocked: newBlocked }).subscribe({
+      error: () => {
+        // Revert on failure
+        this.slots.update(list =>
+          list.map(s => s.id !== slotId ? s : { ...s, isBlocked: slot.isBlocked, status: slot.status })
+        );
+      }
+    });
   }
 
   adjustCapacity(slotId: string, delta: number): void {
+    const slot = this.slots().find(s => s.id === slotId);
+    if (!slot) return;
+    const newCap = Math.max(slot.bookedCount, slot.maxCapacity + delta);
+
     this.slots.update(list =>
-      list.map(slot => {
-        if (slot.id !== slotId) return slot;
-        const newCap = Math.max(slot.bookedCount, slot.maxCapacity + delta);
-        let newStatus: PickupSlotStatus = slot.isBlocked ? 'BLOCKED' : 'AVAILABLE';
-        if (!slot.isBlocked) {
-          if (slot.bookedCount >= newCap) {
-            newStatus = 'FULL';
-          } else if (slot.bookedCount >= newCap * 0.8) {
-            newStatus = 'ALMOST_FULL';
-          }
-        }
-        return {
-          ...slot,
-          maxCapacity: newCap,
-          status: newStatus
-        };
+      list.map(s => s.id !== slotId ? s : {
+        ...s,
+        maxCapacity: newCap,
+        status: this.deriveStatus({ ...s, maxCapacity: newCap })
       })
     );
+
+    this.api.updateSlot(slotId, { maxCapacity: newCap }).subscribe({
+      error: () => {
+        this.slots.update(list =>
+          list.map(s => s.id !== slotId ? s : { ...s, maxCapacity: slot.maxCapacity, status: slot.status })
+        );
+      }
+    });
   }
 
   blockAllRemaining(): void {
     this.slots.update(list =>
-      list.map(slot => ({
-        ...slot,
-        isBlocked: true,
-        status: 'BLOCKED'
-      }))
+      list.map(slot => ({ ...slot, isBlocked: true, status: 'BLOCKED' as PickupSlotStatus }))
     );
   }
 
   unblockAll(): void {
     this.slots.update(list =>
-      list.map(slot => {
-        let status: PickupSlotStatus = 'AVAILABLE';
-        if (slot.bookedCount >= slot.maxCapacity) {
-          status = 'FULL';
-        } else if (slot.bookedCount >= slot.maxCapacity * 0.8) {
-          status = 'ALMOST_FULL';
-        }
-        return {
-          ...slot,
-          isBlocked: false,
-          status
-        };
-      })
+      list.map(slot => ({
+        ...slot,
+        isBlocked: false,
+        status: this.deriveStatus({ ...slot, isBlocked: false })
+      }))
     );
+  }
+
+  private deriveStatus(s: PickupSlotViewModel): PickupSlotStatus {
+    if (s.isBlocked) return 'BLOCKED';
+    if (s.bookedCount >= s.maxCapacity) return 'FULL';
+    if (s.bookedCount >= s.maxCapacity * 0.8) return 'ALMOST_FULL';
+    return 'AVAILABLE';
   }
 }

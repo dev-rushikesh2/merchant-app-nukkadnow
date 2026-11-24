@@ -3,6 +3,7 @@ import { AuthApi } from '../data-access/auth.api';
 import { TokenStorageService, AuthStateService } from '@nukkadnow/auth-client';
 import { TenantStore } from '../../../core/tenant-context/tenant.store';
 import { OutletSwitcherStore } from '../../../core/outlet-context/outlet-switcher.store';
+import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
 import { Router } from '@angular/router';
 
 @Injectable({ providedIn: 'root' })
@@ -10,6 +11,7 @@ export class AuthStore {
   private api = inject(AuthApi);
   private tokenStorage = inject(TokenStorageService);
   private authState = inject(AuthStateService);
+  private merchantAuthStore = inject(MerchantAuthStore);
   private tenantStore = inject(TenantStore);
   private outletStore = inject(OutletSwitcherStore);
   private router = inject(Router);
@@ -85,28 +87,18 @@ export class AuthStore {
 
         const user = {
           id: res.user.id,
-          phone: res.user.phoneNumber || '+91 98000 00000',
+          phone: res.user.phoneNumber || '',
           email: res.user.email || target,
           name: res.user.fullName || res.user.merchantName || target.split('@')[0],
           roles: res.user.roles,
           tenantId: res.user.tenantId,
           outletId: res.user.outletId,
         };
-
         this.authState.setUser(user as any);
 
-        if (res.user.tenantId) {
-          this.tenantStore.setTenant(res.user.tenantId, res.user.merchantName || 'Merchant Store');
-          localStorage.setItem('nk_active_tenant_id', res.user.tenantId);
-        }
-        if (res.user.outletId) {
-          this.outletStore.setOutletForMerchant(
-            res.user.outletId,
-            res.user.merchantName || 'Main Outlet',
-            'Locality',
-            'Nagpur'
-          );
-        }
+        // Propagate the verified session into the core merchant auth store
+        // so every feature that injects MerchantAuthStore gets real identity.
+        this.merchantAuthStore.applyVerifiedSession(res.user);
 
         this.loading.set(false);
         this.clearTimer();
