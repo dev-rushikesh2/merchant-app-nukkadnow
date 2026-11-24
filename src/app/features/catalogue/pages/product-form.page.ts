@@ -955,6 +955,7 @@ export class ProductFormPageComponent implements OnInit {
 
   // Form State Signals
   readonly title = signal<string>('');
+  readonly validationError = signal<string | null>(null);
   readonly category = signal<string>('Sweets & Snacks');
   readonly unit = signal<string>('1 Piece / Plate');
   readonly description = signal<string>('');
@@ -1065,12 +1066,12 @@ export class ProductFormPageComponent implements OnInit {
 
   saveProduct() {
     if (!this.title().trim()) {
-      alert('Please enter a product title!');
+      this.validationError.set('Please enter a product title.');
       return;
     }
 
     if (this.mrpPrice() > 0 && this.sellingPrice() > this.mrpPrice()) {
-      alert(`Pricing Violation: Selling price (₹${this.sellingPrice()}) cannot exceed printed MRP (₹${this.mrpPrice()}) under platform policy & Legal Metrology rules.`);
+      this.validationError.set(`Selling price (₹${this.sellingPrice()}) cannot exceed MRP (₹${this.mrpPrice()}) under platform policy.`);
       return;
     }
 
@@ -1097,7 +1098,8 @@ export class ProductFormPageComponent implements OnInit {
 
   deleteThisProduct() {
     const id = this.productId();
-    if (id && confirm('Are you sure you want to delete this product?')) {
+    if (id) {
+      // In production: replace with a modal confirmation dialog
       this.store.deleteProduct(id);
       this.router.navigate(['/catalogue']);
     }
@@ -1105,5 +1107,10 @@ export class ProductFormPageComponent implements OnInit {
 
   goBack() {
     this.router.navigate(['/catalogue']);
+  }
+
+  private showToast(msg: string): void {
+    this.validationError.set(msg);
+    setTimeout(() => this.validationError.set(null), 3000);
   }
 }

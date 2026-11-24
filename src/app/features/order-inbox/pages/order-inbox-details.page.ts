@@ -1414,7 +1414,7 @@ export class OrderDetailPageComponent implements OnInit, OnDestroy {
         this.currentOrder.update(o => ({ ...o, status: newStatus }));
       },
       error: (err) => {
-        alert(err?.error?.message || 'Failed to update order status');
+        this.errorMessage.set(err?.error?.message || 'Failed to update order status.');
       }
     });
   }

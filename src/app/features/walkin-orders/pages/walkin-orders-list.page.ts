@@ -125,46 +125,13 @@ export class WalkinOrdersPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  private getFallbackProductsForTenant(tenantId: string): PosProduct[] {
-    switch (tenantId) {
-      case 'merchant-sabji-001':
-        return [
-          { id: 'prod-sabji-001', name: 'Fresh Nagpur Palak (Spinach)', emoji: '🥬', category: 'Vegetables & Fruits', price: 25, inStock: true },
-          { id: 'prod-sabji-002', name: 'Farm Fresh Desi Tomatoes', emoji: '🍅', category: 'Vegetables & Fruits', price: 40, inStock: true },
-          { id: 'prod-sabji-003', name: 'Green Shimla Mirch (Capsicum)', emoji: '🫑', category: 'Vegetables & Fruits', price: 35, inStock: true },
-          { id: 'prod-sabji-004', name: 'Fresh Desi Kothimbir (Coriander)', emoji: '🌿', category: 'Vegetables & Fruits', price: 15, inStock: true },
-          { id: 'prod-sabji-005', name: 'Local Vidarbha Red Onions', emoji: '🧅', category: 'Vegetables & Fruits', price: 30, inStock: true },
-          { id: 'prod-sabji-006', name: 'Fresh Pahadi Potatoes (Aloo)', emoji: '🥔', category: 'Vegetables & Fruits', price: 28, inStock: true },
-          { id: 'prod-sabji-007', name: 'Fresh Ginger (Adrak)', emoji: '🫚', category: 'Vegetables & Fruits', price: 40, inStock: true },
-          { id: 'prod-sabji-008', name: 'Spicy Green Chillies (Mirchi)', emoji: '🌶️', category: 'Vegetables & Fruits', price: 20, inStock: true },
-        ];
-      case 'merchant-garguti-003':
-        return [
-          { id: 'prod-garguti-001', name: 'Vidarbha Special Spicy Poha Chivda (500g)', emoji: '🥟', category: 'Home Bakery & Traditional Snacks', price: 160, inStock: true },
-          { id: 'prod-garguti-002', name: 'Crispy Fried Bakarwadi (400g)', emoji: '🥨', category: 'Home Bakery & Traditional Snacks', price: 150, inStock: true },
-          { id: 'prod-garguti-003', name: 'Pure Desi Ghee Besan Laddoo (500g)', emoji: '🍯', category: 'Home Bakery & Traditional Snacks', price: 280, inStock: true },
-          { id: 'prod-garguti-004', name: 'Traditional Bhajani Chakli (250g)', emoji: '🌀', category: 'Home Bakery & Traditional Snacks', price: 110, inStock: true },
-          { id: 'prod-garguti-005', name: 'Crispy Sweet Shankarpale (350g)', emoji: '🍪', category: 'Home Bakery & Traditional Snacks', price: 120, inStock: true },
-        ];
-      case 'merchant-sweets-004':
-        return [
-          { id: 'prod-sweets-001', name: 'Famous Nagpur Orange Barfi (500g)', emoji: '🍊', category: 'Dairy, Sweets & Bakery', price: 340, inStock: true },
-          { id: 'prod-sweets-002', name: 'Pure Ghee Motichoor Laddoo (500g)', emoji: '🥮', category: 'Dairy, Sweets & Bakery', price: 260, inStock: true },
-          { id: 'prod-sweets-003', name: 'Fresh Malai Buffalo Paneer (200g)', emoji: '🧀', category: 'Dairy, Sweets & Bakery', price: 95, inStock: true },
-          { id: 'prod-sweets-004', name: 'Kaju Katli Diamond Silver (400g)', emoji: '💎', category: 'Dairy, Sweets & Bakery', price: 450, inStock: true },
-          { id: 'prod-sweets-005', name: 'Hot Crispy Punjabi Samosa (2 pcs)', emoji: '🥟', category: 'Dairy, Sweets & Bakery', price: 40, inStock: true },
-        ];
-      case 'merchant-kirana-002':
-      default:
-        return [
-          { id: 'prod-kirana-001', name: 'Sharbati Wheat Atta (5 kg)', emoji: '🌾', category: 'Grocery & Daily Needs', price: 245, inStock: true },
-          { id: 'prod-kirana-002', name: 'Kolam Steam Daily Rice (5 kg)', emoji: '🍚', category: 'Grocery & Daily Needs', price: 320, inStock: true },
-          { id: 'prod-kirana-003', name: 'Fortune Mustard Oil (1L Pouch)', emoji: '🫒', category: 'Grocery & Daily Needs', price: 155, inStock: true },
-          { id: 'prod-kirana-004', name: 'Tata Salt Vacuum Evaporated (1 kg)', emoji: '🧂', category: 'Grocery & Daily Needs', price: 28, inStock: true },
-          { id: 'prod-kirana-005', name: 'Unpolished Toor Dal (1 kg)', emoji: '🥣', category: 'Grocery & Daily Needs', price: 168, inStock: true },
-          { id: 'prod-kirana-006', name: 'Amul Taaza Homogenised Milk (1L)', emoji: '🥛', category: 'Grocery & Daily Needs', price: 74, inStock: true },
-        ];
-    }
+  /**
+   * Returns an empty array when the API call fails.
+   * The POS shows "no products found" so the merchant knows to check connectivity.
+   * No hardcoded fallback products -- they would show wrong prices and stock status.
+   */
+  private getFallbackProductsForTenant(_tenantId: string): PosProduct[] {
+    return [];
   }
 
   private getItemEmoji(name: string): string {

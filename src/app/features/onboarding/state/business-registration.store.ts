@@ -67,24 +67,24 @@ export class BusinessRegistrationStore {
 
   // 2. Business Information / Details
   readonly details = signal<BusinessDetails>({
-    businessName: 'Sharma General Store',
-    ownerName: 'Rajesh Sharma',
-    mobileNumber: '+91 98765 43210',
-    email: 'rajesh@store.com',
-    category: 'Grocery & Daily Needs',
-    description: 'A neighbourhood grocery store offering daily essentials, household items and personal care products.'
+    businessName: '',
+    ownerName: '',
+    mobileNumber: '',
+    email: '',
+    category: '',
+    description: ''
   });
 
   // 3. Business Location
   readonly location = signal<BusinessLocation>({
-    pincode: '442001',
-    state: 'Maharashtra',
-    district: 'Akola',
-    city: 'Akola',
-    locality: 'Civil Lines',
-    fullAddress: 'Shop No. 12, Main Market Road, Civil Lines, Akola - 442001',
+    pincode: '',
+    state: '',
+    district: '',
+    city: '',
+    locality: '',
+    fullAddress: '',
     coordinates: { lat: 20.7002, lng: 77.0082 },
-    homeBusinessPrivacy: true
+    homeBusinessPrivacy: false
   });
 
   // 4. Business Hours
@@ -119,27 +119,21 @@ export class BusinessRegistrationStore {
       title: 'PAN Card',
       subtitle: 'Business or owner PAN card (PDF/JPG, Max 5 MB)',
       required: true,
-      uploaded: true,
-      fileName: 'PAN_RAJESH_SHARMA.pdf',
-      fileSize: '1.2 MB'
+      uploaded: false
     },
     {
       id: 'owner_id',
       title: 'Identity Proof (Owner)',
       subtitle: 'Aadhaar / Voter ID / Driving Licence',
       required: true,
-      uploaded: true,
-      fileName: 'AADHAAR_CARD.jpg',
-      fileSize: '2.4 MB'
+      uploaded: false
     },
     {
       id: 'business_proof',
       title: 'Business Proof',
       subtitle: 'Shop Act / Udyam / GST / Registration / Rent Agreement / Utility Bill (any one)',
       required: true,
-      uploaded: true,
-      fileName: 'SHOP_ACT_REGISTRATION.pdf',
-      fileSize: '1.8 MB'
+      uploaded: false
     }
   ]);
 
@@ -155,12 +149,12 @@ export class BusinessRegistrationStore {
   });
 
   // 7. Terms & Conditions Agreement
-  readonly termsAgreed = signal<boolean>(true);
+  readonly termsAgreed = signal<boolean>(false);
 
   // 8. Application Status State
   readonly activePreviewStatus = signal<ApplicationStatusCode>('under_review');
-  readonly applicationId = signal<string>('NN-MR-20261115-0387');
-  readonly submittedTimestamp = signal<string>('15 Nov 2026, 10:24 AM');
+  readonly applicationId = signal<string>('');
+  readonly submittedTimestamp = signal<string>('');
 
   // Computed Helpers
   readonly selectedTypeItem = computed(() => {

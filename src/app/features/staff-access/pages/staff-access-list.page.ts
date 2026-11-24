@@ -174,10 +174,9 @@ export class StaffAccessListPageComponent implements OnInit, OnDestroy {
   }
 
   removeStaff(id: string, name: string) {
-    if (confirm(`Remove staff access for ${name}?`)) {
-      this.staffList.update(list => list.filter(s => s.id !== id));
-      this.showToast(`${name} removed from store roster.`);
-    }
+    // In production: replace with a modal confirmation dialog
+    this.staffList.update(list => list.filter(s => s.id !== id));
+    this.showToast(`${name} removed from store roster.`);
   }
 
   private showToast(msg: string) {

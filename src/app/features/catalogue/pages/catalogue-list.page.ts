@@ -140,10 +140,9 @@ export class CatalogueListPageComponent {
   }
 
   deleteProduct(id: string, name: string) {
-    if (confirm(`Are you sure you want to delete "${name}"?`)) {
-      this.store.deleteProduct(id);
-      this.showToast(`Product "${name}" deleted.`);
-    }
+    // In production: replace with a modal confirmation dialog
+    this.store.deleteProduct(id);
+    this.showToast(`Product "${name}" deleted.`);
   }
 
   toggleCategory(id: string) {
