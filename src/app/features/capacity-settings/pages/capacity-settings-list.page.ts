@@ -1,7 +1,8 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { CapacitySettingsApi } from '../data-access/capacity-settings.api';
 
 export interface PickupSlotPreview {
   id: string;
@@ -28,7 +29,8 @@ export interface BlackoutTimeWindow {
   styleUrls: ['./capacity-settings-list.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class CapacitySettingsListPageComponent {
+export class CapacitySettingsListPageComponent implements OnInit {
+  private readonly capacityApi = inject(CapacitySettingsApi);
   readonly Math = Math;
   // Sub-tabs: 'SLOTS' | 'BLACKOUTS'
   readonly activeSubTab = signal<'SLOTS' | 'BLACKOUTS'>('SLOTS');
@@ -89,6 +91,19 @@ export class CapacitySettingsListPageComponent {
   // Toast
   readonly toast = signal<string | null>(null);
 
+  ngOnInit(): void {
+    this.capacityApi.fetchSettings().subscribe((data) => {
+      if (!data) return;
+      if (data.slotInterval) this.slotInterval.set(data.slotInterval);
+      if (data.maxOrdersPerSlot !== undefined) this.maxOrdersPerSlot.set(Number(data.maxOrdersPerSlot));
+      if (data.maxConcurrentActive !== undefined) this.maxConcurrentActive.set(Number(data.maxConcurrentActive));
+      if (data.bufferMinutes !== undefined) this.bufferMinutes.set(Number(data.bufferMinutes));
+      if (data.kitchenLeadTime !== undefined) this.kitchenLeadTime.set(Number(data.kitchenLeadTime));
+      if (Array.isArray(data.blackoutWindows)) this.blackoutWindows.set(data.blackoutWindows);
+      if (Array.isArray(data.pausedSlotIds)) this.pausedSlotIds.set(new Set(data.pausedSlotIds));
+    });
+  }
+
   setInterval(val: 15 | 30 | 45 | 60) {
     this.slotInterval.set(val);
     this.showToast(`Pickup slot interval set to ${val} minutes.`);
@@ -130,7 +145,22 @@ export class CapacitySettingsListPageComponent {
   }
 
   saveSettings() {
-    this.showToast('Kitchen capacity & slot settings saved successfully!');
+    this.capacityApi.saveSettings({
+      slotInterval: this.slotInterval(),
+      maxOrdersPerSlot: this.maxOrdersPerSlot(),
+      maxConcurrentActive: this.maxConcurrentActive(),
+      bufferMinutes: this.bufferMinutes(),
+      kitchenLeadTime: this.kitchenLeadTime(),
+      blackoutWindows: this.blackoutWindows(),
+      pausedSlotIds: Array.from(this.pausedSlotIds()),
+    }).subscribe({
+      next: () => {
+        this.showToast('Kitchen capacity & slot settings saved successfully!');
+      },
+      error: () => {
+        this.showToast('Failed to save capacity settings. Please retry.');
+      }
+    });
   }
 
   private showToast(msg: string) {

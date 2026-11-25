@@ -234,6 +234,7 @@
   &.manager { background: #E0F2FE; color: #0284C7; }
   &.cashier { background: #FFEDD5; color: #EA580C; }
   &.chef { background: #ECFDF5; color: #059669; }
+  &.inventory { background: #CCFBF1; color: #0F766E; }
 }
 
 /* Roster Section */
@@ -303,6 +304,7 @@
   &.manager { background: #0284C7; }
   &.cashier { background: #FF5A1F; }
   &.chef { background: #10B981; }
+  &.inventory { background: #0D9488; }
 }
 
 .staff-names {
@@ -336,6 +338,7 @@
   &.manager { background: #E0F2FE; color: #0284C7; }
   &.cashier { background: #FFEDD5; color: #EA580C; }
   &.chef { background: #ECFDF5; color: #059669; }
+  &.inventory { background: #CCFBF1; color: #0F766E; }
 }
 
 /* PIN Row */
@@ -673,5 +676,209 @@
 
   &:hover {
     background: #5B21B6;
+  }
+}
+
+.btn-secondary-logs {
+  padding: 10px 16px;
+  background: #FFFFFF;
+  color: #4C1D95;
+  border: 1.5px solid #DDD6FE;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #F5F3FF;
+    border-color: #6D28D9;
+  }
+}
+
+.role-chip.custom,
+.staff-role-badge.custom {
+  background: #F1F5F9;
+  color: #334155;
+  border: 1px solid #CBD5E1;
+}
+
+.staff-avatar.custom {
+  background: #475569;
+}
+
+/* Custom Permissions UI */
+.staff-perms-summary {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.perms-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.perms-summary-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.btn-edit-perms {
+  background: #EDE9FE;
+  color: #5B21B6;
+  border: 1px solid #DDD6FE;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background: #DDD6FE;
+  }
+}
+
+.owner-locked-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6D28D9;
+}
+
+.perms-pills-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.perm-mini-pill {
+  font-size: 11px;
+  font-weight: 600;
+  background: #FFFFFF;
+  color: #334155;
+  border: 1px solid #E2E8F0;
+  padding: 2px 7px;
+  border-radius: 999px;
+
+  &.more {
+    background: #EDE9FE;
+    color: #5B21B6;
+    border-color: #DDD6FE;
+  }
+
+  &.none {
+    background: #FEF2F2;
+    color: #DC2626;
+    border-color: #FECACA;
+  }
+}
+
+.modal-dialog-wide {
+  max-width: 700px;
+  max-height: 90vh;
+}
+
+.modal-subtitle {
+  display: block;
+  font-size: 12px;
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.modal-body-scroll {
+  overflow-y: auto;
+  max-height: 62vh;
+  padding-right: 4px;
+}
+
+.form-row-two {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+
+  @media (min-width: 560px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.perm-grid-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.perm-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.perm-owner-note {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6D28D9;
+  background: #F5F3FF;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.perm-groups-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+
+  @media (min-width: 560px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.perm-group-box {
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.perm-group-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #1E1B4B;
+}
+
+.perm-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.perm-check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    accent-color: #6D28D9;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
   }
 }

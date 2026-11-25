@@ -1,5 +1,6 @@
-import { Component, ChangeDetectionStrategy, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { StaffPermissionStore } from '../../core/permissions/staff-permission.store';
 
 @Component({
   selector: 'merchant-sidebar',
@@ -24,66 +25,110 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         <button type="button" class="close-drawer-btn" (click)="close.emit()" aria-label="Close menu">✕</button>
       </div>
 
+      @if (permStore.activeTerminalStaff(); as staff) {
+        <div class="staff-mode-banner">
+          <span class="staff-mode-dot"></span>
+          <div class="staff-mode-info">
+            <strong>{{ staff.name }}</strong>
+            <span>{{ staff.role }}</span>
+          </div>
+        </div>
+      }
+
       <nav class="nav-menu">
         <div class="nav-section">Operations</div>
         <a routerLink="/dashboard" (click)="close.emit()" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link">
           <span class="link-icon">📊</span>
           <span>Dashboard</span>
         </a>
-        <a routerLink="/order-inbox" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">🔔</span>
-          <span>Order Inbox</span>
-        </a>
-        <a routerLink="/walkin-orders" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">🧾</span>
-          <span>Walk-in Order POS</span>
-        </a>
-        <a routerLink="/queue-board" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">📋</span>
-          <span>Queue Management</span>
-        </a>
-        
-        <div class="nav-section">Catalogue & Stock</div>
-        <a routerLink="/catalogue" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">📦</span>
-          <span>Products</span>
-        </a>
-        <a routerLink="/inventory" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">📉</span>
-          <span>Inventory Overview</span>
-        </a>
-        <a routerLink="/preorders" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">📅</span>
-          <span>Pre-orders</span>
-        </a>
+        @if (canAccess('orders:view')) {
+          <a routerLink="/order-inbox" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">🔔</span>
+            <span>Order Inbox</span>
+          </a>
+        }
+        @if (canAccess('pos:walkin_billing')) {
+          <a routerLink="/walkin-orders" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">🧾</span>
+            <span>Walk-in Order POS</span>
+          </a>
+        }
+        @if (canAccess('orders:view')) {
+          <a routerLink="/queue-board" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">📋</span>
+            <span>Queue Management</span>
+          </a>
+        }
 
-        <div class="nav-section">Fulfillment & Rules</div>
-        <a routerLink="/capacity-settings" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">⚙️</span>
-          <span>Capacity & Slots</span>
-        </a>
-        <a routerLink="/delivery-settings" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">🛵</span>
-          <span>Delivery Management</span>
-        </a>
-        <a routerLink="/staff-access" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">👥</span>
-          <span>Staff Management</span>
-        </a>
+        @if (canAccessAny(['catalog:view', 'inventory:view', 'orders:view'])) {
+          <div class="nav-section">Catalogue &amp; Stock</div>
+        }
+        @if (canAccess('catalog:view')) {
+          <a routerLink="/catalogue" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">📦</span>
+            <span>Products</span>
+          </a>
+        }
+        @if (canAccess('inventory:view')) {
+          <a routerLink="/inventory" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">📉</span>
+            <span>Inventory Overview</span>
+          </a>
+        }
+        @if (canAccess('orders:view')) {
+          <a routerLink="/preorders" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">📅</span>
+            <span>Pre-orders</span>
+          </a>
+        }
+
+        @if (canAccessAny(['capacity:manage', 'delivery:manage', 'staff:manage', 'audit:view'])) {
+          <div class="nav-section">Fulfillment &amp; Rules</div>
+        }
+        @if (canAccess('capacity:manage')) {
+          <a routerLink="/capacity-settings" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">⚙️</span>
+            <span>Capacity &amp; Slots</span>
+          </a>
+        }
+        @if (canAccess('delivery:manage')) {
+          <a routerLink="/delivery-settings" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">🛵</span>
+            <span>Delivery Management</span>
+          </a>
+        }
+        @if (canAccess('staff:manage')) {
+          <a routerLink="/staff-access" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">👥</span>
+            <span>Staff Management</span>
+          </a>
+        }
+        @if (canAccess('audit:view')) {
+          <a routerLink="/audit-logs" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">🛡️</span>
+            <span>Activity Logs</span>
+          </a>
+        }
 
         <div class="nav-section">Store Management</div>
-        <a routerLink="/business-profile" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">🏪</span>
-          <span>Shop Profile</span>
-        </a>
-        <a routerLink="/analytics" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">📈</span>
-          <span>Business Analytics</span>
-        </a>
-        <a routerLink="/subscriptions" (click)="close.emit()" routerLinkActive="active" class="nav-link">
-          <span class="link-icon">⭐</span>
-          <span>Subscriptions</span>
-        </a>
+        @if (canAccess('profile:edit')) {
+          <a routerLink="/business-profile" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">🏪</span>
+            <span>Shop Profile</span>
+          </a>
+        }
+        @if (canAccess('analytics:view')) {
+          <a routerLink="/analytics" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">📈</span>
+            <span>Business Analytics</span>
+          </a>
+        }
+        @if (canAccess('billing:manage')) {
+          <a routerLink="/subscriptions" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">⭐</span>
+            <span>Subscriptions</span>
+          </a>
+        }
         <a routerLink="/settings" (click)="close.emit()" routerLinkActive="active" class="nav-link">
           <span class="link-icon">⚙️</span>
           <span>Settings</span>
@@ -143,6 +188,42 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         font-weight: 700;
         padding: 2px 7px;
         border-radius: 9999px;
+      }
+    }
+
+    .staff-mode-banner {
+      margin: 10px 10px 0;
+      padding: 8px 12px;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .staff-mode-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10B981;
+      flex-shrink: 0;
+    }
+
+    .staff-mode-info {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+
+      strong {
+        font-size: 0.78rem;
+        color: #FFFFFF;
+      }
+
+      span {
+        font-size: 0.68rem;
+        color: #A7F3D0;
+        font-weight: 600;
       }
     }
 
@@ -212,5 +293,16 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SidebarComponent {
+  readonly permStore = inject(StaffPermissionStore);
   close = output<void>();
+
+  canAccess(permission: string): boolean {
+    if (!this.permStore.isStaffMode()) return true;
+    return this.permStore.hasPermission(permission);
+  }
+
+  canAccessAny(permissions: string[]): boolean {
+    if (!this.permStore.isStaffMode()) return true;
+    return permissions.some((p) => this.permStore.hasPermission(p));
+  }
 }

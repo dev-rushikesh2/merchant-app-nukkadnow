@@ -1,8 +1,10 @@
 import { Component, inject, signal, output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { OutletSwitcherStore, ShopLiveStatus } from '../../core/outlet-context/outlet-switcher.store';
 import { TenantStore } from '../../core/tenant-context/tenant.store';
+import { StaffPermissionStore } from '../../core/permissions/staff-permission.store';
+import { StaffAccessApi } from '../../features/staff-access/data-access/staff-access.api';
 import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
 
 @Component({
@@ -52,6 +54,24 @@ import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
       </div>
 
       <div class="right-section">
+        <!-- Quick Terminal PIN Switcher (always accessible, even when Staff Mgmt is hidden) -->
+        <button
+          type="button"
+          class="terminal-actor-pill"
+          [class.staff-active]="permStore.isStaffMode()"
+          (click)="openPinSwitcher()"
+          title="Switch active POS staff/owner via 4-digit PIN">
+          <span class="actor-dot"></span>
+          <span class="actor-text">
+            @if (permStore.activeTerminalStaff(); as staff) {
+              {{ staff.name }} ({{ staff.role }})
+            } @else {
+              Owner Mode
+            }
+          </span>
+          <span class="switch-badge">PIN</span>
+        </button>
+
         <!-- Notification Bell with red dot -->
         <a routerLink="/notifications" class="icon-action-btn" aria-label="Notifications">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -61,14 +81,54 @@ import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
           <span class="notification-red-dot"></span>
         </a>
 
-        <!-- Store Avatar / Profile link -->
-        <a routerLink="/business-profile" class="store-avatar-link" aria-label="Shop Profile">
-          <div class="store-avatar-circle">
-            <span class="store-icon">🏪</span>
-          </div>
-        </a>
+        <!-- Store Avatar / Profile link (Owner only) -->
+        @if (!permStore.isStaffMode() || permStore.hasPermission('profile:edit')) {
+          <a routerLink="/business-profile" class="store-avatar-link" aria-label="Shop Profile">
+            <div class="store-avatar-circle">
+              <span class="store-icon">🏪</span>
+            </div>
+          </a>
+        }
       </div>
     </header>
+
+    <!-- Quick PIN Switch Modal -->
+    @if (showPinModal()) {
+      <div class="pin-backdrop" (click)="showPinModal.set(false)">
+        <div class="pin-keypad-card" (click)="$event.stopPropagation()">
+          <header class="pin-card-head">
+            <span class="pin-card-sub">Terminal Switcher</span>
+            <h3>Enter 4-Digit Staff or Owner PIN</h3>
+          </header>
+
+          <div class="pin-dots" [class.error]="pinError()">
+            <span [class.filled]="enteredPin().length >= 1"></span>
+            <span [class.filled]="enteredPin().length >= 2"></span>
+            <span [class.filled]="enteredPin().length >= 3"></span>
+            <span [class.filled]="enteredPin().length >= 4"></span>
+          </div>
+
+          @if (pinError()) {
+            <p class="pin-err-msg">{{ pinError() }}</p>
+          }
+
+          <div class="pin-numpad">
+            <button type="button" (click)="appendPin('1')">1</button>
+            <button type="button" (click)="appendPin('2')">2</button>
+            <button type="button" (click)="appendPin('3')">3</button>
+            <button type="button" (click)="appendPin('4')">4</button>
+            <button type="button" (click)="appendPin('5')">5</button>
+            <button type="button" (click)="appendPin('6')">6</button>
+            <button type="button" (click)="appendPin('7')">7</button>
+            <button type="button" (click)="appendPin('8')">8</button>
+            <button type="button" (click)="appendPin('9')">9</button>
+            <button type="button" class="clear-btn" (click)="clearPin()">C</button>
+            <button type="button" (click)="appendPin('0')">0</button>
+            <button type="button" class="close-btn" (click)="showPinModal.set(false)">✕</button>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- Shop Status Dialog -->
     <ui-dialog
@@ -225,62 +285,56 @@ import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
     .right-section {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
-    .status-pill {
+    .terminal-actor-pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
+      gap: 7px;
+      padding: 6px 10px;
       border-radius: 9999px;
-      font-size: 0.8rem;
+      background: #F5F3FF;
+      border: 1.5px solid #DDD6FE;
+      color: #4C1D95;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
-      border: 1.5px solid transparent;
-      transition: all 150ms ease;
-    }
 
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
-    .caret-svg {
-      width: 14px;
-      height: 14px;
-      opacity: 0.7;
-    }
-
-    .status-pill--open {
-      background: #ECFDF5;
-      color: #065F46;
-      border-color: #A7F3D0;
-
-      .status-dot {
-        background: #10B981;
-        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+      &:hover {
+        background: #EDE9FE;
       }
-    }
 
-    .status-pill--paused {
-      background: #FFFBEB;
-      color: #92400E;
-      border-color: #FDE68A;
+      &.staff-active {
+        background: #ECFDF5;
+        border-color: #A7F3D0;
+        color: #065F46;
 
-      .status-dot {
-        background: #F59E0B;
+        .actor-dot {
+          background: #10B981;
+        }
       }
-    }
 
-    .status-pill--closed {
-      background: #F1F5F9;
-      color: #475569;
-      border-color: #CBD5E1;
+      .actor-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #6D28D9;
+      }
 
-      .status-dot {
-        background: #94A3B8;
+      .actor-text {
+        max-width: 170px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .switch-badge {
+        background: #FFFFFF;
+        padding: 1px 6px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 800;
       }
     }
 
@@ -330,6 +384,108 @@ import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
 
         .store-icon {
           font-size: 1.1rem;
+        }
+      }
+    }
+
+    .pin-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .pin-keypad-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 330px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.25);
+    }
+
+    .pin-card-head {
+      text-align: center;
+
+      .pin-card-sub {
+        font-size: 11px;
+        font-weight: 700;
+        color: #6D28D9;
+        text-transform: uppercase;
+      }
+
+      h3 {
+        margin: 4px 0 0;
+        font-size: 16px;
+        font-weight: 800;
+        color: #1E1B4B;
+      }
+    }
+
+    .pin-dots {
+      display: flex;
+      gap: 12px;
+
+      span {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #E2E8F0;
+
+        &.filled {
+          background: #6D28D9;
+        }
+      }
+
+      &.error span {
+        background: #DC2626;
+      }
+    }
+
+    .pin-err-msg {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: #DC2626;
+    }
+
+    .pin-numpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      width: 100%;
+
+      button {
+        height: 52px;
+        border-radius: 10px;
+        border: 1.5px solid #E2E8F0;
+        background: #FFFFFF;
+        font-size: 20px;
+        font-weight: 800;
+        color: #1E1B4B;
+        cursor: pointer;
+
+        &:hover {
+          background: #EDE9FE;
+          color: #6D28D9;
+        }
+
+        &.clear-btn {
+          color: #DC2626;
+          background: #FEF2F2;
+        }
+
+        &.close-btn {
+          color: #64748B;
         }
       }
     }
@@ -428,11 +584,58 @@ import { DialogComponent, ButtonComponent } from '@nukkadnow/ui';
 export class TopbarComponent {
   tenantStore = inject(TenantStore);
   outletStore = inject(OutletSwitcherStore);
+  permStore = inject(StaffPermissionStore);
+  private staffApi = inject(StaffAccessApi);
+  private router = inject(Router);
 
   toggleMenu = output<void>();
 
   isStatusModalOpen = signal<boolean>(false);
   showPausePresets = signal<boolean>(false);
+
+  showPinModal = signal<boolean>(false);
+  enteredPin = signal<string>('');
+  pinError = signal<string | null>(null);
+
+  openPinSwitcher() {
+    this.enteredPin.set('');
+    this.pinError.set(null);
+    this.showPinModal.set(true);
+  }
+
+  appendPin(digit: string) {
+    if (this.enteredPin().length >= 4) return;
+    const next = this.enteredPin() + digit;
+    this.enteredPin.set(next);
+    if (next.length === 4) {
+      this.staffApi.verifyPin(next).subscribe({
+        next: (res) => {
+          const matched = res?.member;
+          if (!matched) {
+            this.pinError.set('Invalid PIN');
+            setTimeout(() => this.enteredPin.set(''), 700);
+            return;
+          }
+          if (String(matched.role || '').trim().toUpperCase() === 'OWNER') {
+            this.permStore.clearActiveStaff();
+          } else {
+            this.permStore.setActiveStaff(matched, res?.shiftToken || null);
+            this.router.navigate(['/dashboard']);
+          }
+          this.showPinModal.set(false);
+        },
+        error: () => {
+          this.pinError.set('Invalid or suspended PIN.');
+          setTimeout(() => this.enteredPin.set(''), 800);
+        }
+      });
+    }
+  }
+
+  clearPin() {
+    this.enteredPin.set('');
+    this.pinError.set(null);
+  }
 
   changeStatus(status: ShopLiveStatus) {
     this.outletStore.setShopStatus(status);

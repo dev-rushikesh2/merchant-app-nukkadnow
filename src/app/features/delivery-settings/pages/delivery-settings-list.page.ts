@@ -328,7 +328,10 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
   addRider(): void {
     const name = this.newRiderName().trim();
     const phone = this.newRiderPhone().trim();
-    if (!name || !phone) return;
+    if (!name || phone.replace(/\D/g, '').length < 10) {
+      this.showToast('Please enter rider full name and valid 10-digit mobile number.');
+      return;
+    }
 
     const rider: StoreRider = {
       id: `rider-${Date.now()}`,
@@ -344,26 +347,32 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
     this.newRiderPhone.set('');
     this.newRiderVehicle.set('');
     this.showAddRider.set(false);
-    this.showToast(`Delivery partner "${name}" registered successfully!`);
+    this.saveSettings(`Delivery partner "${name}" registered & saved!`);
   }
 
   toggleDelivery(): void {
     this.isDeliveryEnabled.update(v => !v);
-    this.showToast(`Delivery service is now ${this.isDeliveryEnabled() ? 'ENABLED' : 'DISABLED'}.`);
+    this.saveSettings(`Delivery service is now ${this.isDeliveryEnabled() ? 'ENABLED' : 'DISABLED'}.`);
   }
 
   addPincode(): void {
     const pin = this.newPincode().trim();
-    if (pin.length === 6 && !this.pincodes().includes(pin)) {
-      this.pincodes.update(list => [...list, pin]);
-      this.newPincode.set('');
-      this.showToast(`Pincode ${pin} added to delivery zone.`);
+    if (!/^\d{6}$/.test(pin)) {
+      this.showToast('Please enter a valid 6-digit pincode.');
+      return;
     }
+    if (this.pincodes().includes(pin)) {
+      this.showToast(`Pincode ${pin} is already listed.`);
+      return;
+    }
+    this.pincodes.update(list => [...list, pin]);
+    this.newPincode.set('');
+    this.saveSettings(`Pincode ${pin} added to delivery zone.`);
   }
 
   removePincode(pin: string): void {
     this.pincodes.update(list => list.filter(p => p !== pin));
-    this.showToast(`Pincode ${pin} removed.`);
+    this.saveSettings(`Pincode ${pin} removed.`);
   }
 
   toggleRiderStatus(riderId: string): void {
@@ -376,10 +385,28 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
         return r;
       })
     );
+    this.saveSettings('Rider availability status updated.');
   }
 
-  saveSettings(): void {
-    this.showToast(`Delivery geofence (${this.deliveryRadiusKm()} km) and pricing rules saved!`);
+  saveSettings(customMessage?: string): void {
+    const payload = {
+      isDeliveryEnabled: this.isDeliveryEnabled(),
+      deliveryRadiusKm: this.deliveryRadiusKm(),
+      minOrderAmount: this.minOrderAmount(),
+      baseDeliveryFee: this.baseDeliveryFee(),
+      freeDeliveryAbove: this.freeDeliveryAbove(),
+      estDeliveryMinutes: this.estDeliveryMinutes(),
+      pincodes: this.pincodes(),
+      riders: this.riders(),
+    };
+    this.deliveryApi.saveSettings(payload).subscribe({
+      next: () => {
+        this.showToast(customMessage || `Delivery geofence (${this.deliveryRadiusKm()} km) and pricing rules saved!`);
+      },
+      error: () => {
+        this.showToast('Failed to save delivery settings. Please retry.');
+      }
+    });
   }
 
   /**
@@ -400,7 +427,7 @@ export class DeliverySettingsListPageComponent implements OnInit, AfterViewInit,
         this.estDeliveryMinutes.set(data.estDeliveryMinutes ?? 0);
         this.pincodes.set(data.pincodes ?? []);
 
-        if (data.riders?.length) {
+        if (Array.isArray(data.riders)) {
           this.riders.set(data.riders.map(r => ({
             id: r.id,
             name: r.name,

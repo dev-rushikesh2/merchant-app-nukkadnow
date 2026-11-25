@@ -96,6 +96,14 @@ export class MerchantAuthStore {
       );
     }
     localStorage.setItem('nk_active_tenant_id', merchant.tenantId);
+    localStorage.setItem(
+      'nk_active_merchant_meta',
+      JSON.stringify({
+        merchantName: merchant.merchantName,
+        locality: merchant.locality,
+        city: merchant.city,
+      })
+    );
     this.tenantSwitched$.next(merchant.tenantId);
   }
 
@@ -107,6 +115,12 @@ export class MerchantAuthStore {
     const authUser = this.authState.user();
     if (!authUser?.tenantId) return;
 
+    let savedMeta: any = {};
+    try {
+      const rawMeta = localStorage.getItem('nk_active_merchant_meta');
+      if (rawMeta) savedMeta = JSON.parse(rawMeta);
+    } catch {}
+
     const merchant: ActiveMerchant = {
       id: authUser.id,
       fullName: authUser.name || '',
@@ -115,9 +129,9 @@ export class MerchantAuthStore {
       roles: (authUser.roles as unknown as string[]) || [],
       tenantId: authUser.tenantId,
       outletId: authUser.outletId || '',
-      merchantName: authUser.name || '',
-      locality: '',
-      city: '',
+      merchantName: savedMeta.merchantName || (authUser as any).merchantName || authUser.name || '',
+      locality: savedMeta.locality || '',
+      city: savedMeta.city || '',
     };
 
     this.activeMerchant.set(merchant);
@@ -137,6 +151,9 @@ export class MerchantAuthStore {
     this.tokenStorage.clear();
     this.authState.logout();
     localStorage.removeItem('nk_active_tenant_id');
+    localStorage.removeItem('nk_active_merchant_meta');
+    localStorage.removeItem('nk_active_terminal_staff');
+    localStorage.removeItem('nk_staff_shift_token');
     this.activeMerchant.set(null);
     this.router.navigate(['/auth/login'], { queryParams: { mode: 'login' } });
   }

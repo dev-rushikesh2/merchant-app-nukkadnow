@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+import { StaffPermissionStore } from '../../core/permissions/staff-permission.store';
 
 @Component({
   selector: 'merchant-bottom-nav',
@@ -20,42 +21,48 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
       </a>
 
       <!-- 2: Orders -->
-      <a routerLink="/order-inbox" routerLinkActive="active" class="nav-item">
-        <div class="nav-icon-wrap">
-          <svg viewBox="0 0 24 24" class="nav-svg" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <line x1="10" y1="9" x2="8" y2="9"/>
-          </svg>
-        </div>
-        <span class="nav-label">Orders</span>
-      </a>
+      @if (canAccess('orders:view')) {
+        <a routerLink="/order-inbox" routerLinkActive="active" class="nav-item">
+          <div class="nav-icon-wrap">
+            <svg viewBox="0 0 24 24" class="nav-svg" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <line x1="10" y1="9" x2="8" y2="9"/>
+            </svg>
+          </div>
+          <span class="nav-label">Orders</span>
+        </a>
+      }
 
       <!-- 3: Products -->
-      <a routerLink="/catalogue" routerLinkActive="active" class="nav-item">
-        <div class="nav-icon-wrap">
-          <svg viewBox="0 0 24 24" class="nav-svg" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </div>
-        <span class="nav-label">Products</span>
-      </a>
+      @if (canAccess('catalog:view')) {
+        <a routerLink="/catalogue" routerLinkActive="active" class="nav-item">
+          <div class="nav-icon-wrap">
+            <svg viewBox="0 0 24 24" class="nav-svg" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <span class="nav-label">Products</span>
+        </a>
+      }
 
       <!-- 4: Inventory -->
-      <a routerLink="/inventory" routerLinkActive="active" class="nav-item">
-        <div class="nav-icon-wrap">
-          <svg viewBox="0 0 24 24" class="nav-svg" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-            <polyline points="2 17 12 22 22 17"/>
-            <polyline points="2 12 12 17 22 12"/>
-          </svg>
-        </div>
-        <span class="nav-label">Inventory</span>
-      </a>
+      @if (canAccess('inventory:view')) {
+        <a routerLink="/inventory" routerLinkActive="active" class="nav-item">
+          <div class="nav-icon-wrap">
+            <svg viewBox="0 0 24 24" class="nav-svg" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+          </div>
+          <span class="nav-label">Inventory</span>
+        </a>
+      }
 
       <!-- 5: More -->
       <a routerLink="/settings" routerLinkActive="active" class="nav-item">
@@ -140,4 +147,11 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MerchantBottomNavComponent {}
+export class MerchantBottomNavComponent {
+  private permStore = inject(StaffPermissionStore);
+
+  canAccess(permission: string): boolean {
+    if (!this.permStore.isStaffMode()) return true;
+    return this.permStore.hasPermission(permission);
+  }
+}

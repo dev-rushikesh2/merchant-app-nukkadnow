@@ -23,7 +23,6 @@ export class AuthStateService {
   setUser(user: AuthUser | null) {
     if (user) {
       localStorage.setItem('nk_merchant_user', JSON.stringify(user));
-      this.tokenStorage.setAccessToken('live-merchant-token-' + (user.id || 'default'));
     } else {
       localStorage.removeItem('nk_merchant_user');
       this.tokenStorage.clear();

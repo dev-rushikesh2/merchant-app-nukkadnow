@@ -12,8 +12,8 @@
   <!-- Header -->
   <header class="page-header">
     <div class="header-titles">
-      <h1 class="page-title">Staff Directory & PIN Security</h1>
-      <p class="page-subtitle">Manage roles, staff permissions, and 4-digit PINs for instant shift switching on shared POS tablets.</p>
+      <h1 class="page-title">Staff Directory &amp; Custom Access</h1>
+      <p class="page-subtitle">Create custom staff roles, choose exact sidebar tabs &amp; actions each person can access, and track every shop change in Activity Logs.</p>
     </div>
 
     <div class="header-actions">
@@ -27,8 +27,12 @@
         <span class="switch-chip">Switch (PIN) ⚡</span>
       </button>
 
-      <button type="button" class="btn-primary-add" (click)="showInviteModal.set(true)">
-        + Invite Team Member
+      <a routerLink="/audit-logs" class="btn-secondary-logs">
+        Activity Logs
+      </a>
+
+      <button type="button" class="btn-primary-add" (click)="openInviteModal()">
+        + Add Staff Member
       </button>
     </div>
   </header>
@@ -44,38 +48,38 @@
     <div class="metric-card emerald-tint">
       <span class="metric-label">Shared POS Security</span>
       <strong class="metric-val emerald">PIN LOCK ON</strong>
-      <span class="metric-sub">Instant shift handover</span>
+      <span class="metric-sub">Server-verified shift handover</span>
     </div>
 
     <div class="metric-card royal-tint">
-      <span class="metric-label">Role Levels</span>
-      <strong class="metric-val purple">4 Granular Roles</strong>
-      <span class="metric-sub">Owner, Manager, Cashier, Chef</span>
+      <span class="metric-label">Access Model</span>
+      <strong class="metric-val purple">100% Owner-Defined</strong>
+      <span class="metric-sub">Custom roles &amp; granular sidebar control</span>
     </div>
   </section>
 
-  <!-- Roles Guide Cards -->
+  <!-- Owner-Defined Access Guide -->
   <section class="roles-guide-card">
-    <h2 class="guide-title">Role Permission Breakdown</h2>
+    <h2 class="guide-title">How Owner-Controlled Permissions Work</h2>
     <div class="roles-grid">
       <div class="role-badge-box owner">
         <span class="role-chip owner">OWNER</span>
-        <p>Full unrestricted control over store payouts, bank details, subscriptions, and staff management.</p>
+        <p>Full control over custom staff roles, permissions, Activity Logs, billing, delivery settings, and shop profile (always Owner-locked).</p>
       </div>
 
       <div class="role-badge-box manager">
-        <span class="role-chip manager">MANAGER</span>
-        <p>Day-to-day operations: catalogue pricing, inventory adjustments, opening schedules, and order refunds.</p>
+        <span class="role-chip custom">CUSTOM ROLES</span>
+        <p>Create any role name you want (e.g. "Floor Helper", "Stock Keeper", "Counter Boy") — no fixed roles forced by the system.</p>
       </div>
 
       <div class="role-badge-box cashier">
-        <span class="role-chip cashier">CASHIER</span>
-        <p>Walk-in POS counter billing, receipt printing, customer token handover, and live queue calling.</p>
+        <span class="role-chip cashier">DYNAMIC SIDEBAR</span>
+        <p>Each staff member sees ONLY the tabs and actions you check for them when they switch in via their 4-digit PIN.</p>
       </div>
 
       <div class="role-badge-box chef">
-        <span class="role-chip chef">CHEF / KITCHEN</span>
-        <p>Kitchen display system (KDS), preparation status updates, lead times, and out-of-stock toggles.</p>
+        <span class="role-chip chef">AUDIT TRAIL</span>
+        <p>Every order, price, stock, and settings change logs who made it, their role, timestamp, and before/after values.</p>
       </div>
     </div>
   </section>
@@ -90,7 +94,7 @@
       @for (staff of staffList(); track staff.id) {
         <article class="staff-card" [class.inactive]="!staff.isActive">
           <div class="staff-card-top">
-            <div class="staff-avatar" [class]="staff.role.toLowerCase()">
+            <div class="staff-avatar" [class]="getRoleClass(staff.role)">
               {{ staff.name.charAt(0) }}
             </div>
 
@@ -100,7 +104,7 @@
               <span class="staff-outlet">{{ staff.outlet }}</span>
             </div>
 
-            <span class="staff-role-badge" [class]="staff.role.toLowerCase()">
+            <span class="staff-role-badge" [class]="getRoleClass(staff.role)">
               {{ staff.role }}
             </span>
           </div>
@@ -119,15 +123,51 @@
             </button>
           </div>
 
+          <!-- Granted Permissions Summary -->
+          <div class="staff-perms-summary">
+            <div class="perms-summary-header">
+              <span class="perms-summary-label">Granted Permissions</span>
+              @if (!isOwnerRole(staff.role)) {
+                <button
+                  type="button"
+                  class="btn-edit-perms"
+                  [attr.data-staff-id]="staff.id"
+                  (click)="openEditPermissionsModal(staff)">
+                  Edit Role &amp; Access ({{ staff.permissions.length }})
+                </button>
+              } @else {
+                <span class="owner-locked-tag">All Owner Controls</span>
+              }
+            </div>
+
+            @if (!isOwnerRole(staff.role)) {
+              <div class="perms-pills-wrap">
+                @for (perm of staff.permissions.slice(0, 4); track perm) {
+                  <span class="perm-mini-pill">{{ getPermLabel(perm) }}</span>
+                }
+                @if (staff.permissions.length > 4) {
+                  <span class="perm-mini-pill more">+{{ staff.permissions.length - 4 }} more</span>
+                }
+                @if (staff.permissions.length === 0) {
+                  <span class="perm-mini-pill none">No permissions granted</span>
+                }
+              </div>
+            }
+          </div>
+
           <!-- Card Footer -->
           <div class="staff-card-footer">
-            <label class="switch-wrap" title="Toggle active authorization">
-              <input type="checkbox" [checked]="staff.isActive" (change)="toggleStaffActive(staff.id)" />
+            <label class="switch-wrap">
+              <input
+                type="checkbox"
+                [checked]="staff.isActive"
+                [disabled]="isOwnerRole(staff.role)"
+                (change)="toggleStaffActive(staff.id)" />
               <span class="switch-slider"></span>
               <span class="switch-label">{{ staff.isActive ? 'Active' : 'Suspended' }}</span>
             </label>
 
-            @if (staff.role !== 'OWNER') {
+            @if (!isOwnerRole(staff.role)) {
               <button type="button" class="btn-remove-staff" (click)="removeStaff(staff.id, staff.name)">
                 Remove
               </button>
@@ -149,7 +189,6 @@
           <h2 class="keypad-title">Enter 4-Digit Staff PIN</h2>
         </header>
 
-        <!-- PIN Dots Display -->
         <div class="pin-dots-display" [class.error]="pinError()">
           <div class="dot" [class.filled]="enteredPin().length >= 1"></div>
           <div class="dot" [class.filled]="enteredPin().length >= 2"></div>
@@ -161,7 +200,6 @@
           <span class="pin-error-text">{{ pinError() }}</span>
         }
 
-        <!-- 3x4 Touch Keypad -->
         <div class="touch-keypad">
           <button type="button" class="num-key" (click)="appendPinDigit('1')">1</button>
           <button type="button" class="num-key" (click)="appendPinDigit('2')">2</button>
@@ -181,46 +219,156 @@
   }
 
   <!-- ============================================== -->
-  <!-- MODAL 2: INVITE TEAM MEMBER                   -->
+  <!-- MODAL 2: INVITE TEAM MEMBER + CUSTOM ROLE     -->
   <!-- ============================================== -->
   @if (showInviteModal()) {
     <div class="modal-backdrop" (click)="showInviteModal.set(false)">
-      <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-dialog modal-dialog-wide" (click)="$event.stopPropagation()">
         <header class="modal-header">
-          <h3>Invite Team Member</h3>
+          <div>
+            <h3>Add Staff Member &amp; Define Permissions</h3>
+            <span class="modal-subtitle">Name their role anything you like and check only the screens &amp; actions they should see.</span>
+          </div>
           <button type="button" class="btn-close" (click)="showInviteModal.set(false)">×</button>
         </header>
 
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Full Name <span class="required">*</span></label>
-            <input type="text" class="form-input" placeholder="e.g. Rahul Deshmukh" [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
+        <div class="modal-body modal-body-scroll">
+          <div class="form-row-two">
+            <div class="form-group">
+              <label class="form-label">Full Name <span class="required">*</span></label>
+              <input type="text" class="form-input" placeholder="e.g. Rahul Deshmukh" [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Mobile Number <span class="required">*</span></label>
+              <input type="tel" class="form-input" placeholder="+91 98765 43210" [ngModel]="newPhone()" (ngModelChange)="newPhone.set($event)" />
+            </div>
+          </div>
+
+          <div class="form-row-two">
+            <div class="form-group">
+              <label class="form-label">Custom Role Name <span class="required">*</span></label>
+              <input type="text" class="form-input" maxlength="40" placeholder="e.g. Floor Boy, Stock Keeper, Counter Staff" [ngModel]="newRoleLabel()" (ngModelChange)="newRoleLabel.set($event)" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">4-Digit POS Switch PIN (Optional)</label>
+              <input type="text" maxlength="4" class="form-input" placeholder="e.g. 5678" [ngModel]="newPin()" (ngModelChange)="newPin.set($event)" />
+            </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Mobile Number <span class="required">*</span></label>
-            <input type="tel" class="form-input" placeholder="+91 98765 43210" [ngModel]="newPhone()" (ngModelChange)="newPhone.set($event)" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Assigned Role</label>
-            <select class="form-select" [ngModel]="newRole()" (ngModelChange)="newRole.set($event)">
-              <option value="MANAGER">Manager (Full store control)</option>
-              <option value="CASHIER">Cashier (Walk-in POS & Tokens)</option>
-              <option value="CHEF">Chef / Kitchen (KDS & Prep)</option>
+            <label class="form-label">Quick Permission Template (Optional — pre-fills checkboxes below)</label>
+            <select class="form-select" [ngModel]="newPreset()" (ngModelChange)="applyInvitePreset($event)">
+              <option value="CASHIER">POS Counter Billing &amp; Orders Template</option>
+              <option value="INVENTORY">Stock &amp; Inventory Helper Template</option>
+              <option value="MANAGER">Full Store Operations Template</option>
+              <option value="CHEF">Prep / Packing Counter Template</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">4-Digit POS Switch PIN (Optional)</label>
-            <input type="text" maxlength="4" class="form-input" placeholder="e.g. 5678 (auto-generated if empty)" [ngModel]="newPin()" (ngModelChange)="newPin.set($event)" />
+          <!-- Custom Permissions Grid -->
+          <div class="perm-grid-section">
+            <div class="perm-section-header">
+              <label class="form-label">What Can They See &amp; Do? ({{ invitePermissions().length }} selected)</label>
+              <span class="perm-owner-note">Staff Mgmt, Audit Logs &amp; Billing stay Owner-only</span>
+            </div>
+
+            <div class="perm-groups-grid">
+              @for (grp of permissionGroups; track grp.label) {
+                <div class="perm-group-box">
+                  <strong class="perm-group-title">{{ grp.label }}</strong>
+                  <div class="perm-checks">
+                    @for (perm of grp.perms; track perm) {
+                      <label class="perm-check-label">
+                        <input
+                          type="checkbox"
+                          [checked]="invitePermissions().includes(perm)"
+                          (change)="toggleInvitePermission(perm)" />
+                        <span>{{ getPermLabel(perm) }}</span>
+                      </label>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
           </div>
         </div>
 
         <footer class="modal-footer">
           <button type="button" class="btn-modal-cancel" (click)="showInviteModal.set(false)">Cancel</button>
           <button type="button" class="btn-modal-submit" (click)="inviteStaffMember()">
-            Send Invitation & Authorize
+            Add Staff &amp; Authorize
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================== -->
+  <!-- MODAL 3: EDIT STAFF ROLE & PERMISSIONS        -->
+  <!-- ============================================== -->
+  @if (showEditPermsModal() && editingStaff(); as target) {
+    <div class="modal-backdrop" (click)="showEditPermsModal.set(false)">
+      <div class="modal-dialog modal-dialog-wide" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <div>
+            <h3>Edit Role &amp; Access: {{ target.name }}</h3>
+            <span class="modal-subtitle">Rename this role or change exactly which tabs and actions {{ target.name }} can access.</span>
+          </div>
+          <button type="button" class="btn-close" (click)="showEditPermsModal.set(false)">×</button>
+        </header>
+
+        <div class="modal-body modal-body-scroll">
+          <div class="form-row-two">
+            <div class="form-group">
+              <label class="form-label">Custom Role Name</label>
+              <input type="text" class="form-input" maxlength="40" placeholder="e.g. Floor Helper" [ngModel]="editRoleLabel()" (ngModelChange)="editRoleLabel.set($event)" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Apply Quick Template (Optional)</label>
+              <select class="form-select" [ngModel]="editPreset()" (ngModelChange)="applyEditPreset($event)">
+                <option value="CASHIER">POS Counter Template</option>
+                <option value="INVENTORY">Stock &amp; Inventory Template</option>
+                <option value="MANAGER">Full Store Operations Template</option>
+                <option value="CHEF">Prep / Packing Template</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="perm-grid-section">
+            <div class="perm-section-header">
+              <label class="form-label">Visible Tabs &amp; Actions ({{ editPermissions().length }} selected)</label>
+              <span class="perm-owner-note">Audit Logs, Staff Mgmt &amp; Billing are locked to Owner</span>
+            </div>
+
+            <div class="perm-groups-grid">
+              @for (grp of permissionGroups; track grp.label) {
+                <div class="perm-group-box">
+                  <strong class="perm-group-title">{{ grp.label }}</strong>
+                  <div class="perm-checks">
+                    @for (perm of grp.perms; track perm) {
+                      <label class="perm-check-label">
+                        <input
+                          type="checkbox"
+                          [attr.data-perm]="perm"
+                          [checked]="editPermissions().includes(perm)"
+                          (change)="toggleEditPermission(perm)" />
+                        <span>{{ getPermLabel(perm) }}</span>
+                      </label>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn-modal-cancel" (click)="showEditPermsModal.set(false)">Cancel</button>
+          <button type="button" class="btn-modal-submit" (click)="saveEditedPermissions()">
+            Save Permissions
           </button>
         </footer>
       </div>

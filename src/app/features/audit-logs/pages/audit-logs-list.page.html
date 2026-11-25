@@ -1,0 +1,163 @@
+<div class="audit-viewport">
+  <header class="audit-header">
+    <div>
+      <h1 class="audit-title">Shop Activity &amp; Audit Logs</h1>
+      <p class="audit-subtitle">
+        Immutable timeline of every stock change, price edit, order action, and staff update across your store.
+      </p>
+    </div>
+
+    <div class="audit-header-actions">
+      <a routerLink="/staff-access" class="btn-back-staff">← Staff &amp; Permissions</a>
+      <button type="button" class="btn-refresh" (click)="loadLogs()" [disabled]="loading()">
+        {{ loading() ? 'Refreshing...' : '↻ Refresh' }}
+      </button>
+    </div>
+  </header>
+
+  <!-- Filter Bar -->
+  <section class="filters-card" aria-label="Audit log filters">
+    <div class="filter-field">
+      <label>Search</label>
+      <input
+        type="text"
+        placeholder="Staff name, item, action..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)" />
+    </div>
+
+    <div class="filter-field">
+      <label>Module</label>
+      <select [ngModel]="selectedModule()" (ngModelChange)="selectedModule.set($event); loadLogs()">
+        @for (mod of modules; track mod) {
+          <option [value]="mod">{{ mod === 'ALL' ? 'All Modules' : mod }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label>Team Member</label>
+      <select [ngModel]="selectedStaffId()" (ngModelChange)="selectedStaffId.set($event); loadLogs()">
+        <option value="ALL">All Staff &amp; Owner</option>
+        @for (m of staffMembers(); track m.id) {
+          <option [value]="m.id">{{ m.name }} ({{ m.role }})</option>
+        }
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label>From Date</label>
+      <input type="date" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event); loadLogs()" />
+    </div>
+
+    <div class="filter-field">
+      <label>To Date</label>
+      <input type="date" [ngModel]="toDate()" (ngModelChange)="toDate.set($event); loadLogs()" />
+    </div>
+
+    <div class="filter-actions">
+      <button type="button" class="btn-reset" (click)="resetFilters()">Reset</button>
+    </div>
+  </section>
+
+  <!-- Summary Strip -->
+  <div class="audit-meta-strip">
+    <span>Showing <strong>{{ filteredLogs().length }}</strong> audit events (latest 200)</span>
+    <span class="immutable-tag">🛡️ Append-Only Audit Trail • Cannot be edited or deleted</span>
+  </div>
+
+  <!-- Table / Cards -->
+  <section class="logs-table-card">
+    @if (loading() && logs().length === 0) {
+      <div class="empty-state">Loading shop activity logs...</div>
+    } @else if (filteredLogs().length === 0) {
+      <div class="empty-state">
+        <strong>No activity logs match these filters yet.</strong>
+        <p>Changes made by you or your PIN-switched staff members will appear here with timestamps and before/after details.</p>
+      </div>
+    } @else {
+      <div class="table-scroll">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th>Date &amp; Time</th>
+              <th>Changed By</th>
+              <th>Module</th>
+              <th>Action</th>
+              <th>Target</th>
+              <th>Before → After Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of filteredLogs(); track row.id) {
+              <tr>
+                <td class="col-time">
+                  <strong>{{ formatDate(row.createdAt) }}</strong>
+                  <span>{{ formatTime(row.createdAt) }}</span>
+                </td>
+
+                <td class="col-actor">
+                  <strong>{{ row.actorName }}</strong>
+                  <div class="actor-badges">
+                    <span class="role-pill">{{ row.actorRole }}</span>
+                    <span class="mode-pill" [class.pin]="row.authMode === 'PIN_SHIFT'">
+                      {{ row.authMode === 'PIN_SHIFT' ? 'PIN Shift' : 'Owner Login' }}
+                    </span>
+                  </div>
+                </td>
+
+                <td>
+                  <span class="module-badge" [class]="'mod-' + row.module.toLowerCase()">
+                    {{ row.module }}
+                  </span>
+                </td>
+
+                <td class="col-action">
+                  <strong>{{ formatAction(row.action) }}</strong>
+                </td>
+
+                <td class="col-target">
+                  <span>{{ row.targetLabel || row.targetId || '—' }}</span>
+                  @if (row.targetType) {
+                    <small>{{ row.targetType }}</small>
+                  }
+                </td>
+
+                <td class="col-diff">
+                  @if (row.beforeState || row.afterState) {
+                    <div class="diff-wrap">
+                      @if (row.beforeState) {
+                        <div class="diff-box before">
+                          <span class="diff-label">Before</span>
+                          @for (entry of formatStateEntries(row.beforeState); track entry.key) {
+                            <div class="diff-kv">
+                              <b>{{ entry.key }}:</b> {{ entry.value }}
+                            </div>
+                          }
+                        </div>
+                      }
+                      @if (row.afterState) {
+                        <div class="diff-box after">
+                          <span class="diff-label">After</span>
+                          @for (entry of formatStateEntries(row.afterState); track entry.key) {
+                            <div class="diff-kv">
+                              <b>{{ entry.key }}:</b> {{ entry.value }}
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  } @else if (row.notes) {
+                    <span class="notes-text">{{ row.notes }}</span>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>
