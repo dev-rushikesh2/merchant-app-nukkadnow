@@ -31,7 +31,11 @@ export class OrderInboxApi {
     return this.fetchOrders(params);
   }
 
-  updateOrderStatus(orderId: string, status: 'New' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled', prepMinutes?: number): Observable<any> {
+  updateOrderStatus(
+    orderId: string,
+    status: 'New' | 'Preparing' | 'Ready' | 'OUT_FOR_DELIVERY' | 'Out for Delivery' | 'Completed' | 'Cancelled',
+    prepMinutes?: number
+  ): Observable<any> {
     const cleanId = encodeURIComponent(orderId.replace('#', ''));
     return this.http.patch<any>(`${this.baseUrl}/${cleanId}/status`, { status, prepMinutes });
   }

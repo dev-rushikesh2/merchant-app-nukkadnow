@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { BusinessRegistrationStore } from '../state/business-registration.store';
 import { RegistrationHeaderComponent } from '../components/registration-header.component';
 import { RegistrationStepperComponent } from '../components/registration-stepper.component';
-import { MapPickerPreviewComponent } from '../components/map-picker-preview.component';
+import { MapPickerPreviewComponent, ResolvedShopAddress } from '../components/map-picker-preview.component';
 import { DocumentUploaderComponent } from '../components/document-uploader.component';
 import { BusinessTypeId, ApplicationStatusCode } from '../models/business-registration.model';
 
@@ -203,5 +203,17 @@ export class OnboardingListPageComponent {
   // Status simulation
   changeStatusPreview(code: ApplicationStatusCode): void {
     this.store.setPreviewStatus(code);
+  }
+
+  onMapAddressResolved(addr: ResolvedShopAddress): void {
+    this.store.updateLocation({
+      coordinates: { lat: addr.lat, lng: addr.lng },
+      ...(addr.pincode ? { pincode: addr.pincode } : {}),
+      ...(addr.state ? { state: addr.state } : {}),
+      ...(addr.district ? { district: addr.district } : {}),
+      ...(addr.city ? { city: addr.city } : {}),
+      ...(addr.locality ? { locality: addr.locality } : {}),
+      ...(addr.fullAddress && !this.store.location().fullAddress ? { fullAddress: addr.fullAddress } : {}),
+    });
   }
 }

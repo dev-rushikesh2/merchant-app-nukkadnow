@@ -13,7 +13,9 @@ export class InventoryApi {
     return this.http.get<any[]>(this.baseUrl, { outletId }).pipe(
       map(items => {
         if (!items || items.length === 0) return [];
-        return items.flatMap(prod =>
+        return items
+          .filter(prod => prod?.isAvailable !== false)
+          .flatMap(prod =>
           (prod.variants || []).map((v: any) => ({
             id: v.id,
             productId: prod.id,
@@ -57,7 +59,7 @@ export class InventoryApi {
         return records.map((r: any) => ({
           id: r.id,
           productId: r.referenceId || r.variantId,
-          productTitle: `Variant ${r.variantId.slice(-6)}`,
+          productTitle: r.productTitle || `Variant ${String(r.variantId || '').slice(-6)}`,
           delta: r.quantity,
           previousStock: r.previousStock ?? 0,
           newStock: r.newStock ?? 0,

@@ -1,4 +1,4 @@
-﻿import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+﻿import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -13,8 +13,12 @@ import { InventoryItem, StockAdjustmentReason } from '../models/inventory-view.m
   styleUrls: ['./inventory-list.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class InventoryPageComponent {
+export class InventoryPageComponent implements OnInit {
   store = inject(InventoryStore);
+
+  ngOnInit(): void {
+    this.store.reload();
+  }
 
   // Sub-tabs: 'STOCK' | 'MOVEMENTS'
   readonly activeTab = signal<'STOCK' | 'MOVEMENTS'>('STOCK');

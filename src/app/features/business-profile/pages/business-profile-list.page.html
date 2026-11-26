@@ -16,7 +16,10 @@
       <p class="page-subtitle">Manage customer-facing branding, verified merchant badges, weekly opening schedules, and holidays.</p>
     </div>
 
-    <div class="header-actions">
+    <div class="header-actions" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <a routerLink="/qr-ordering" style="padding:10px 16px;background:#FFF7ED;border:1px solid #FDBA74;color:#EA580C;border-radius:12px;font-size:13px;font-weight:700;text-decoration:none;">
+        📱 Shop QR &amp; Print Poster
+      </a>
       @if (activeSubTab() === 'PROFILE') {
         <button type="button" class="btn-primary-save" (click)="saveProfile()">
           Save Store Profile
@@ -72,7 +75,7 @@
               <h2 class="store-name-title">{{ shopName() }}</h2>
               <span class="verified-pill">✓ Verified Merchant</span>
             </div>
-            <span class="cat-locality-text">{{ businessCategory() }} • Laxmi Nagar, {{ city() }}</span>
+            <span class="cat-locality-text">{{ businessCategory() }} • {{ locality() ? locality() + ', ' : '' }}{{ city() || 'Set Location' }}</span>
           </div>
         </div>
       </section>
@@ -136,15 +139,20 @@
               <textarea class="field-textarea" rows="2" [ngModel]="addressStreet()" (ngModelChange)="addressStreet.set($event)"></textarea>
             </div>
 
-            <div class="form-row-2">
+            <div class="form-row-2" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+              <div class="form-group">
+                <label class="field-label">Locality / Colony</label>
+                <input type="text" class="field-input" [ngModel]="locality()" (ngModelChange)="locality.set($event)" placeholder="e.g. Pushpak Colony" />
+              </div>
+
               <div class="form-group">
                 <label class="field-label">City</label>
-                <input type="text" class="field-input" [ngModel]="city()" (ngModelChange)="city.set($event)" />
+                <input type="text" class="field-input" [ngModel]="city()" (ngModelChange)="city.set($event)" placeholder="e.g. Amravati" />
               </div>
 
               <div class="form-group">
                 <label class="field-label">Pincode</label>
-                <input type="text" class="field-input" [ngModel]="pincode()" (ngModelChange)="pincode.set($event)" />
+                <input type="text" class="field-input" [ngModel]="pincode()" (ngModelChange)="pincode.set($event)" placeholder="e.g. 444600" />
               </div>
             </div>
 
@@ -169,6 +177,25 @@
           </div>
         </section>
       </div>
+
+      <!-- Real GPS Location & Interactive OpenStreetMap Pin Card -->
+      <section class="section-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">Exact Shop GPS Location &amp; Map Pin</h2>
+            <p class="card-subtitle">Detect your real shop GPS, search your street, or tap/drag the pin so nearby customers can discover &amp; order accurately.</p>
+          </div>
+        </div>
+
+        <merchant-map-picker-preview
+          [shopName]="shopName() || 'My Shop'"
+          [locality]="locality()"
+          [city]="city()"
+          [coordinates]="mapCoordinates()"
+          (locationChange)="onLocationCoordinatesChange($event)"
+          (addressResolved)="onAddressResolved($event)">
+        </merchant-map-picker-preview>
+      </section>
 
       <!-- Storefront Photo Gallery -->
       <section class="section-card">

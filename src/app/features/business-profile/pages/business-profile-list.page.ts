@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { BusinessProfileApi } from '../data-access/business-profile.api';
 import { MerchantAuthStore } from '../../../core/auth/merchant-auth.store';
 import { OutletSwitcherStore } from '../../../core/outlet-context/outlet-switcher.store';
+import { MapPickerPreviewComponent, ResolvedShopAddress } from '../../onboarding/components/map-picker-preview.component';
 import { Subscription } from 'rxjs';
 
 export interface DayOperatingHours {
@@ -23,7 +24,7 @@ export interface HolidayClosure {
 @Component({
   selector: 'merchant-business-profile-list-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, MapPickerPreviewComponent],
   templateUrl: './business-profile-list.page.html',
   styleUrls: ['./business-profile-list.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -47,8 +48,11 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
   readonly tagline = signal<string>('');
 
   readonly addressStreet = signal<string>('');
-  readonly city = signal<string>('Nagpur');
-  readonly pincode = signal<string>('440010');
+  readonly locality = signal<string>('');
+  readonly city = signal<string>('');
+  readonly pincode = signal<string>('');
+  readonly mapCoordinates = signal<{ lat: number; lng: number }>({ lat: 20.9281, lng: 77.7526 });
+  private loadedCoords: { lat: number; lng: number } | null = null;
   readonly gstin = signal<string>('');
   readonly fssai = signal<string>('');
 
@@ -106,8 +110,21 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
           this.email.set(p.email || '');
           this.tagline.set(p.tagline || p.description || '');
           this.addressStreet.set(p.addressStreet || p.addressLine || '');
-          this.city.set(p.city || this.authStore.activeMerchant()?.city || 'Nagpur');
-          this.pincode.set(p.pincode || '440010');
+          this.locality.set(p.locality || this.authStore.activeMerchant()?.locality || '');
+          this.city.set(p.city || this.authStore.activeMerchant()?.city || '');
+          this.pincode.set(p.pincode || '');
+          if (
+            p.latitude != null &&
+            p.longitude != null &&
+            Number.isFinite(Number(p.latitude)) &&
+            Number.isFinite(Number(p.longitude))
+          ) {
+            const coords = { lat: Number(p.latitude), lng: Number(p.longitude) };
+            this.loadedCoords = coords;
+            this.mapCoordinates.set(coords);
+          } else {
+            this.loadedCoords = null;
+          }
           this.gstin.set(p.gstin || '');
           this.fssai.set(p.fssai || '');
           if (p.coverUrl) this.coverUrl.set(p.coverUrl);
@@ -117,48 +134,68 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
           if (p.weeklySchedule && p.weeklySchedule.length > 0) this.weeklySchedule.set(p.weeklySchedule);
           if (p.holidays) this.holidays.set(p.holidays);
         } else {
-          // Bind active tenant values
-          const active = this.authStore.activeMerchant();
-          if (active) {
-            this.shopName.set(active.merchantName);
-            this.ownerName.set(active.fullName);
-            this.phone.set(active.phoneNumber);
-            this.email.set(active.email);
-            this.businessCategory.set('Retail Store');
-            this.city.set(active.city);
-          }
-          this.gstin.set('');
-          this.fssai.set('');
+          this.bindActiveMerchantFallback();
         }
         this.isLoading.set(false);
       },
       error: () => {
-        const active = this.authStore.activeMerchant();
-        if (active) {
-          this.shopName.set(active.merchantName);
-          this.ownerName.set(active.fullName);
-          this.phone.set(active.phoneNumber);
-          this.email.set(active.email);
-          this.businessCategory.set('Retail Store');
-          this.city.set(active.city);
-        }
-        this.gstin.set('');
-        this.fssai.set('');
+        this.bindActiveMerchantFallback();
         this.isLoading.set(false);
       }
     });
+  }
+
+  private bindActiveMerchantFallback(): void {
+    const active = this.authStore.activeMerchant();
+    if (active) {
+      this.shopName.set(active.merchantName);
+      this.ownerName.set(active.fullName);
+      this.phone.set(active.phoneNumber);
+      this.email.set(active.email);
+      this.businessCategory.set('Retail Store');
+      this.locality.set(active.locality || '');
+      this.city.set(active.city || '');
+    }
+    this.gstin.set('');
+    this.fssai.set('');
+  }
+
+  onLocationCoordinatesChange(coords: { lat: number; lng: number }): void {
+    this.mapCoordinates.set(coords);
+  }
+
+  onAddressResolved(addr: ResolvedShopAddress): void {
+    const movedFromInitial =
+      !this.loadedCoords ||
+      Math.abs(addr.lat - this.loadedCoords.lat) > 0.0005 ||
+      Math.abs(addr.lng - this.loadedCoords.lng) > 0.0005;
+
+    this.mapCoordinates.set({ lat: addr.lat, lng: addr.lng });
+
+    if ((movedFromInitial || !this.locality().trim()) && addr.locality) {
+      this.locality.set(addr.locality);
+    }
+    if ((movedFromInitial || !this.city().trim()) && addr.city) {
+      this.city.set(addr.city);
+    }
+    if ((movedFromInitial || !this.pincode().trim()) && addr.pincode) {
+      this.pincode.set(addr.pincode);
+    }
+    if ((movedFromInitial || !this.addressStreet().trim()) && addr.fullAddress) {
+      this.addressStreet.set(addr.fullAddress);
+    }
   }
 
   toggleShopLive() {
     this.isShopLiveOpen.update(v => !v);
     const outletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
     this.api.updateOperatingHours(outletId, { isShopLiveOpen: this.isShopLiveOpen() }).subscribe();
-    this.showToast(`Shop status updated: ${this.isShopLiveOpen() ? '?? OPEN' : '?? TEMPORARILY CLOSED'}.`);
+    this.showToast(`Shop status updated: ${this.isShopLiveOpen() ? 'OPEN' : 'TEMPORARILY CLOSED'}.`);
   }
 
   toggleDayOpen(index: number) {
     this.weeklySchedule.update(list =>
-      list.map((d, i) => i === index ? { ...d, isOpen: !d.isOpen } : d)
+      list.map((d, i) => (i === index ? { ...d, isOpen: !d.isOpen } : d))
     );
   }
 
@@ -166,7 +203,7 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
     this.weeklySchedule.update(list =>
       list.map(d => ({ ...d, openTime: time.openTime, closeTime: time.closeTime }))
     );
-    this.showToast(`Applied ${time.openTime} – ${time.closeTime} to all 7 days.`);
+    this.showToast(`Applied ${time.openTime} - ${time.closeTime} to all 7 days.`);
   }
 
   addStorePhoto() {
@@ -198,6 +235,7 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
   }
 
   saveProfile() {
+    const coords = this.mapCoordinates();
     const payload = {
       shopName: this.shopName(),
       businessCategory: this.businessCategory(),
@@ -206,8 +244,11 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
       email: this.email(),
       tagline: this.tagline(),
       addressStreet: this.addressStreet(),
+      locality: this.locality(),
       city: this.city(),
       pincode: this.pincode(),
+      latitude: coords?.lat,
+      longitude: coords?.lng,
       gstin: this.gstin(),
       fssai: this.fssai(),
       coverUrl: this.coverUrl(),
@@ -217,10 +258,11 @@ export class BusinessProfileListPageComponent implements OnInit, OnDestroy {
 
     this.api.updateProfile(payload).subscribe({
       next: () => {
-        this.showToast('Store profile & branding saved successfully!');
+        if (coords) this.loadedCoords = coords;
+        this.showToast('Store profile & GPS location saved successfully!');
       },
       error: () => {
-        this.showToast('Store profile saved locally.');
+        this.showToast('Failed to save profile to server. Please retry.');
       }
     });
   }

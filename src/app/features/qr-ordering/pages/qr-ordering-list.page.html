@@ -39,8 +39,8 @@
       <span class="card-sub">Placed without waiting in queue</span>
     </div>
     <div class="metric-card">
-      <span class="card-label">Storefront Link</span>
-      <span class="card-val text-orange">nukkadnow.in/m/{{ store.merchantSlug() }}</span>
+      <span class="card-label">Storefront Order Link</span>
+      <span class="card-val text-orange" style="font-size:13px;word-break:break-all;">{{ store.storefrontOrderUrl() }}</span>
       <span class="card-sub">Direct marketplace PWA entry</span>
     </div>
   </div>
@@ -62,15 +62,33 @@
             <div class="stats-row">
               <span class="stat-pill"><strong>{{ st.scanCount }}</strong> Scans</span>
               <span class="stat-pill"><strong>{{ st.orderCount }}</strong> Orders</span>
-              <span class="stat-time">Last: {{ st.lastScannedAt }}</span>
+              <span class="stat-time">{{ st.lastScannedAt ? 'Last: ' + st.lastScannedAt : 'Ready to scan' }}</span>
             </div>
 
-            <div class="card-actions">
+            <div class="card-actions" style="display:flex;flex-wrap:wrap;gap:8px;">
+              <button 
+                type="button" 
+                class="btn-sm btn-print" 
+                (click)="downloadPosterPng(st)">
+                ⬇️ Poster PNG
+              </button>
+              <button 
+                type="button" 
+                class="btn-sm btn-outline" 
+                (click)="downloadSvg(st)">
+                ⬇️ SVG
+              </button>
+              <button 
+                type="button" 
+                class="btn-sm btn-outline" 
+                (click)="copyOrderLink(st)">
+                📋 Copy Link
+              </button>
               <button 
                 type="button" 
                 class="btn-sm btn-print" 
                 (click)="openPrintPreview(st)">
-                🖨️ Print Standee A5
+                🖨️ Print A5
               </button>
               <button 
                 type="button" 
@@ -172,7 +190,11 @@
 
   <div class="modal-footer-actions" slot="footer">
     <button type="button" class="btn-secondary" (click)="closePrintPreview()">Close</button>
-    <nukkad-button variant="primary" (buttonClick)="printStandee()">🖨️ Send to Printer</nukkad-button>
+    @if (store.selectedForPrint(); as st) {
+      <button type="button" class="btn-secondary" (click)="downloadSvg(st)">⬇️ Download SVG</button>
+      <button type="button" class="btn-secondary" (click)="downloadPosterPng(st)">⬇️ Download PNG Poster</button>
+    }
+    <nukkad-button variant="primary" (buttonClick)="printStandee()">🖨️ Print A5 / PDF</nukkad-button>
   </div>
 </nukkad-dialog>
 

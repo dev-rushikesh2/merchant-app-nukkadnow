@@ -10,44 +10,74 @@ import {
   AfterViewInit,
   OnDestroy,
   PLATFORM_ID,
-  inject
+  inject,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClientAdapter } from '@nukkadnow/api-client';
+import { of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import * as L from 'leaflet';
+
+export interface ResolvedShopAddress {
+  lat: number;
+  lng: number;
+  locality: string;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+  fullAddress: string;
+}
 
 @Component({
   selector: 'merchant-map-picker-preview',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="map-wrapper" role="region" aria-label="Interactive Store Location Map">
       <!-- Leaflet Map Container -->
       <div #mapContainer class="leaflet-map-host"></div>
 
+      <!-- Floating Search Bar Overlay -->
+      <div class="map-search-overlay">
+        <div class="search-pill">
+          <span class="search-lens">🔍</span>
+          <input
+            type="text"
+            class="map-search-input"
+            placeholder="Search shop street, colony, city or pincode..."
+            [ngModel]="searchQuery()"
+            (ngModelChange)="onSearchInput($event)" />
+          @if (searchQuery()) {
+            <button type="button" class="clear-btn" (click)="clearSearch()" aria-label="Clear search">✕</button>
+          }
+        </div>
+        @if (searchResults().length > 0) {
+          <div class="search-dropdown">
+            @for (item of searchResults(); track item.id) {
+              <button type="button" class="dropdown-row" (click)="selectSearchResult(item)">
+                <span>📍</span>
+                <div class="drop-text">
+                  <strong>{{ item.name }}</strong>
+                  <small>{{ item.distance }}</small>
+                </div>
+              </button>
+            }
+          </div>
+        }
+      </div>
+
       <!-- Floating Controls Top-Right -->
       <div class="map-overlay-controls">
         <button
           type="button"
-          class="map-control-btn gps-btn"
+          class="map-control-btn gps-pill-btn"
           (click)="triggerLocate()"
-          [title]="'Detect GPS Location'"
+          [title]="'Detect Real Shop GPS Location'"
           aria-label="Detect current GPS location">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#0F172A"
-            stroke-width="2.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            [class.spin]="isLocating()">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="22" y1="12" x2="18" y2="12"></line>
-            <line x1="6" y1="12" x2="2" y2="12"></line>
-            <line x1="12" y1="6" x2="12" y2="2"></line>
-            <line x1="12" y1="22" x2="12" y2="18"></line>
-          </svg>
+          <span>{{ isLocating() ? '⏳' : '🎯' }}</span>
+          <span>{{ isLocating() ? 'Locating...' : 'Use Shop GPS' }}</span>
         </button>
 
         <div class="zoom-btn-group">
@@ -56,13 +86,13 @@ import * as L from 'leaflet';
         </div>
       </div>
 
-      <!-- Bottom Coordinate / Mode Status Strip -->
+      <!-- Bottom Coordinate / Resolved Address Strip -->
       <div class="map-bottom-strip" [class.privacy-active]="homeBusinessPrivacy()">
         @if (homeBusinessPrivacy()) {
           <div class="strip-privacy-indicator">
             <span class="shield-icon">🛡️</span>
             <div class="strip-text">
-              <span class="badge-title">Home Privacy Mode Active</span>
+              <span class="badge-title">Home Privacy Mode Active ({{ resolvedSummary() }})</span>
               <span class="badge-sub">Customers only see approximate ~500m zone. Exact address hidden.</span>
             </div>
           </div>
@@ -70,8 +100,8 @@ import * as L from 'leaflet';
           <div class="strip-coords-indicator">
             <span class="pin-icon">📍</span>
             <div class="strip-text">
-              <span class="badge-title">{{ shopName() }}</span>
-              <span class="badge-sub">{{ currentLat().toFixed(4) }}° N, {{ currentLng().toFixed(4) }}° E (Drag pin to fine-tune)</span>
+              <span class="badge-title">{{ shopName() }} · {{ resolvedSummary() }}</span>
+              <span class="badge-sub">{{ currentLat().toFixed(4) }}° N, {{ currentLng().toFixed(4) }}° E (Tap map or drag pin to set exact shop doorstep)</span>
             </div>
           </div>
         }
@@ -93,7 +123,7 @@ import * as L from 'leaflet';
 
     .map-wrapper {
       width: 100%;
-      height: 260px;
+      height: 310px;
       border-radius: 16px;
       overflow: hidden;
       position: relative;
@@ -108,20 +138,95 @@ import * as L from 'leaflet';
       z-index: 1;
     }
 
-    /* Floating map controls */
+    .map-search-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 145px;
+      z-index: 450;
+    }
+
+    .search-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: 10px;
+      padding: 4px 10px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+    }
+
+    .search-lens { font-size: 13px; }
+
+    .map-search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 12.5px;
+      color: #0F172A;
+      background: transparent;
+      padding: 4px 0;
+      min-width: 0;
+    }
+
+    .clear-btn {
+      border: none;
+      background: #F1F5F9;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .search-dropdown {
+      margin-top: 4px;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+      max-height: 170px;
+      overflow-y: auto;
+    }
+
+    .dropdown-row {
+      width: 100%;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      border: none;
+      border-bottom: 1px solid #F1F5F9;
+      background: #FFFFFF;
+      text-align: left;
+      cursor: pointer;
+
+      &:hover { background: #FFF7ED; }
+      &:last-child { border-bottom: none; }
+
+      .drop-text {
+        display: flex;
+        flex-direction: column;
+        strong { font-size: 12.5px; color: #0F172A; }
+        small { font-size: 11px; color: #64748B; }
+      }
+    }
+
     .map-overlay-controls {
       position: absolute;
-      top: 12px;
-      right: 12px;
+      top: 10px;
+      right: 10px;
       display: flex;
       flex-direction: column;
+      align-items: flex-end;
       gap: 8px;
       z-index: 400;
     }
 
     .map-control-btn {
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       border-radius: 10px;
       background: #FFFFFF;
       border: 1px solid #CBD5E1;
@@ -130,18 +235,23 @@ import * as L from 'leaflet';
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       color: #1E293B;
-      transition: all 0.15s ease;
 
-      &:hover {
-        background: #F8FAFC;
-        transform: scale(1.05);
-      }
-      &:active {
-        transform: scale(0.95);
-      }
+      &:hover { background: #F8FAFC; }
+    }
+
+    .gps-pill-btn {
+      width: auto;
+      padding: 0 10px;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #EA580C;
+      border-color: #FED7AA;
+      background: #FFF7ED;
+      &:hover { background: #FFEDD5; }
     }
 
     .zoom-btn-group {
@@ -149,117 +259,77 @@ import * as L from 'leaflet';
       flex-direction: column;
       border-radius: 10px;
       overflow: hidden;
+      border: 1px solid #CBD5E1;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 
       .map-control-btn {
+        border: none;
         border-radius: 0;
         box-shadow: none;
-
-        &:first-child {
-          border-bottom: 1px solid #E2E8F0;
-        }
+        &:first-child { border-bottom: 1px solid #E2E8F0; }
       }
     }
 
-    .spin {
-      animation: spinAnim 1s linear infinite;
-    }
-
-    @keyframes spinAnim {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    /* Bottom strip */
     .map-bottom-strip {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(8px);
-      padding: 8px 14px;
-      border-top: 1px solid rgba(226, 232, 240, 0.9);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
       z-index: 400;
-      transition: background 0.2s ease;
-
-      &.privacy-active {
-        background: rgba(255, 247, 237, 0.96);
-        border-top-color: #FDBA74;
-      }
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 8px 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    .strip-coords-indicator,
-    .strip-privacy-indicator {
+    .strip-privacy-indicator,
+    .strip-coords-indicator {
       display: flex;
       align-items: center;
-      gap: 10px;
-    }
-
-    .pin-icon, .shield-icon {
-      font-size: 18px;
-      flex-shrink: 0;
+      gap: 8px;
     }
 
     .strip-text {
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
 
     .badge-title {
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 800;
       color: #0F172A;
-      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .badge-sub {
-      font-size: 11px;
+      font-size: 10.5px;
       color: #64748B;
-      font-weight: 500;
-    }
-
-    .strip-privacy-indicator {
-      .badge-title {
-        color: #C2410C;
-      }
-      .badge-sub {
-        color: #EA580C;
-      }
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .locate-toast {
       position: absolute;
-      top: 12px;
+      top: 52px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.9);
-      color: #FFFFFF;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: 9999px;
-      backdrop-filter: blur(6px);
       z-index: 500;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      animation: fadeInToast 0.25s ease;
+      background: #0F172A;
+      color: #FFFFFF;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-weight: 700;
+      white-space: nowrap;
     }
 
-    @keyframes fadeInToast {
-      from { opacity: 0; transform: translate(-50%, -8px); }
-      to { opacity: 1; transform: translate(-50%, 0); }
-    }
-
-    /* Custom Leaflet Marker Styling injected into DOM */
     ::ng-deep {
-      .nn-leaflet-marker {
-        background: transparent;
-        border: none;
-      }
-
+      .nn-leaflet-marker { background: transparent; border: none; }
       .nn-pin-bubble {
         position: relative;
         display: flex;
@@ -267,45 +337,23 @@ import * as L from 'leaflet';
         align-items: center;
         transform: translate(-50%, -100%);
       }
-
       .nn-pin-head {
         background: #EA580C;
         color: #FFFFFF;
-        padding: 5px 10px;
+        padding: 4px 10px;
         border-radius: 20px;
         font-size: 11px;
         font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 5px;
         white-space: nowrap;
         box-shadow: 0 3px 10px rgba(234, 88, 12, 0.4);
         border: 2px solid #FFFFFF;
-        transition: transform 0.15s ease;
-
-        &:hover {
-          transform: scale(1.08);
-        }
       }
-
       .nn-pin-point {
-        width: 0;
-        height: 0;
+        width: 0; height: 0;
         border-left: 6px solid transparent;
         border-right: 6px solid transparent;
         border-top: 8px solid #EA580C;
-        margin-top: -1px;
       }
-
-      .nn-pin-pulse {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: rgba(234, 88, 12, 0.35);
-        animation: pinRadar 1.8s infinite ease-out;
-        margin-top: -6px;
-      }
-
       .nn-privacy-center-tag {
         transform: translate(-50%, -50%);
         background: #C2410C;
@@ -315,110 +363,144 @@ import * as L from 'leaflet';
         font-size: 11px;
         font-weight: 700;
         white-space: nowrap;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
         border: 2px solid #FFFFFF;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-
-      @keyframes pinRadar {
-        0% { transform: scale(0.6); opacity: 0.9; }
-        100% { transform: scale(2.6); opacity: 0; }
       }
     }
   `],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MapPickerPreviewComponent implements AfterViewInit, OnDestroy {
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly http = inject(HttpClientAdapter);
   readonly mapContainerRef = viewChild<ElementRef<HTMLDivElement>>('mapContainer');
 
-  // Inputs
-  shopName = input<string>('Sharma General Store');
-  locality = input<string>('Civil Lines');
-  city = input<string>('Akola');
-  coordinates = input<{ lat: number; lng: number }>({ lat: 20.7002, lng: 77.0082 });
+  shopName = input<string>('My Shop');
+  locality = input<string>('');
+  city = input<string>('');
+  coordinates = input<{ lat: number; lng: number }>({ lat: 20.9281, lng: 77.7526 });
   homeBusinessPrivacy = input<boolean>(false);
 
-  // Outputs
   locationChange = output<{ lat: number; lng: number }>();
+  addressResolved = output<ResolvedShopAddress>();
 
-  // Internal reactive state
-  readonly currentLat = signal<number>(20.7002);
-  readonly currentLng = signal<number>(77.0082);
+  readonly currentLat = signal<number>(20.9281);
+  readonly currentLng = signal<number>(77.7526);
   readonly isLocating = signal<boolean>(false);
   readonly locateToast = signal<string | null>(null);
+  readonly searchQuery = signal<string>('');
+  readonly searchResults = signal<any[]>([]);
+  readonly resolvedSummary = signal<string>('Pin shop location');
 
   private map?: L.Map;
   private marker?: L.Marker;
   private privacyCircle?: L.Circle;
+  private searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    // Keep internal signals in sync when coordinates input changes
     effect(() => {
       const coords = this.coordinates();
       if (coords && (coords.lat !== this.currentLat() || coords.lng !== this.currentLng())) {
-        this.currentLat.set(coords.lat);
-        this.currentLng.set(coords.lng);
-        this.updateMapPosition(coords.lat, coords.lng, false);
+        queueMicrotask(() => {
+          this.currentLat.set(coords.lat);
+          this.currentLng.set(coords.lng);
+          this.updateMapPosition(coords.lat, coords.lng, true);
+        });
       }
     });
 
-    // Update privacy circle when toggle state changes
     effect(() => {
       const isPrivacy = this.homeBusinessPrivacy();
-      this.refreshPrivacyLayer(isPrivacy);
+      queueMicrotask(() => this.refreshPrivacyLayer(isPrivacy));
+    });
+
+    effect(() => {
+      const loc = this.locality();
+      const ct = this.city();
+      const combined = [loc, ct].filter(Boolean).join(', ');
+      if (combined) {
+        queueMicrotask(() => this.resolvedSummary.set(combined));
+      }
     });
   }
 
   ngAfterViewInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
-
     const el = this.mapContainerRef()?.nativeElement;
     if (!el) return;
 
-    const initialLat = this.coordinates()?.lat ?? 20.7002;
-    const initialLng = this.coordinates()?.lng ?? 77.0082;
+    const initialLat = this.coordinates()?.lat ?? 20.9281;
+    const initialLng = this.coordinates()?.lng ?? 77.7526;
     this.currentLat.set(initialLat);
     this.currentLng.set(initialLng);
 
-    // Initialize Leaflet Map
     this.map = L.map(el, {
       center: [initialLat, initialLng],
       zoom: 15,
       zoomControl: false,
-      attributionControl: false
+      attributionControl: false,
     });
 
-    // Add OpenStreetMap raster tile layer
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      attribution: '&copy; OpenStreetMap',
     }).addTo(this.map);
 
-    // Minimal attribution control bottom-right
     L.control.attribution({ position: 'bottomright', prefix: 'OSM' }).addTo(this.map);
 
-    // Create marker
     this.createOrUpdateMarker(initialLat, initialLng);
 
-    // Map click moves the pin
     this.map.on('click', (e: L.LeafletMouseEvent) => {
-      this.onPinMoved(e.latlng.lat, e.latlng.lng);
+      this.onPinMoved(e.latlng.lat, e.latlng.lng, true);
     });
 
-    // Invalidate size to ensure clean tile rendering inside Angular layout
     setTimeout(() => {
       this.map?.invalidateSize();
     }, 250);
   }
 
   ngOnDestroy(): void {
+    if (this.searchDebounce) clearTimeout(this.searchDebounce);
     if (this.map) {
       this.map.remove();
       this.map = undefined;
     }
+  }
+
+  onSearchInput(val: string): void {
+    this.searchQuery.set(val);
+    if (!val.trim()) {
+      this.searchResults.set([]);
+      return;
+    }
+    if (this.searchDebounce) clearTimeout(this.searchDebounce);
+    this.searchDebounce = setTimeout(() => {
+      this.http
+        .get<any>('/api/v1/merchant/locations/areas', {
+          q: val.trim(),
+          lat: String(this.currentLat()),
+          lng: String(this.currentLng()),
+        })
+        .pipe(catchError(() => of(null)))
+        .subscribe((res) => {
+          const items = Array.isArray(res?.data) ? res.data : [];
+          this.searchResults.set(items.slice(0, 5));
+        });
+    }, 280);
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('');
+    this.searchResults.set([]);
+  }
+
+  selectSearchResult(item: any): void {
+    this.clearSearch();
+    const lat = Number(item.latitude);
+    const lng = Number(item.longitude);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+    this.onPinMoved(lat, lng, true);
+    this.map?.flyTo([lat, lng], 16, { duration: 0.7 });
   }
 
   zoomIn(): void {
@@ -431,73 +513,101 @@ export class MapPickerPreviewComponent implements AfterViewInit, OnDestroy {
 
   triggerLocate(): void {
     if (!navigator.geolocation) {
-      this.showToast('Geolocation is not supported by your browser');
+      this.showToast('Geolocation not supported in this browser.');
       return;
     }
 
     this.isLocating.set(true);
+    const onSuccess = (pos: GeolocationPosition) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      this.isLocating.set(false);
+      this.onPinMoved(lat, lng, true);
+      this.map?.flyTo([lat, lng], 16, { duration: 0.8 });
+      this.showToast(`Real shop GPS detected (±${Math.round(pos.coords.accuracy)}m)`);
+    };
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        this.isLocating.set(false);
-        this.onPinMoved(lat, lng);
-        this.map?.flyTo([lat, lng], 16, { duration: 1.2 });
-        this.showToast(`GPS Location set (±${Math.round(pos.coords.accuracy)}m)`);
-      },
+      onSuccess,
       (err) => {
-        this.isLocating.set(false);
-        this.showToast('Could not access GPS. Please pin manually on map.');
+        if (err.code === err.PERMISSION_DENIED) {
+          this.isLocating.set(false);
+          this.showToast('GPS blocked — search your street above or click the map.');
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          onSuccess,
+          () => {
+            this.isLocating.set(false);
+            this.showToast('Could not detect GPS — search your street above or click the map.');
+          },
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 120000 }
+        );
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 7000, maximumAge: 30000 }
     );
   }
 
-  private onPinMoved(lat: number, lng: number): void {
+  private onPinMoved(lat: number, lng: number, shouldReverse: boolean): void {
     this.currentLat.set(lat);
     this.currentLng.set(lng);
     this.updateMapPosition(lat, lng, true);
     this.locationChange.emit({ lat, lng });
+
+    if (shouldReverse) {
+      this.resolvedSummary.set('Detecting street address...');
+      this.http
+        .get<any>('/api/v1/merchant/locations/reverse', {
+          lat: String(lat),
+          lng: String(lng),
+        })
+        .pipe(catchError(() => of(null)))
+        .subscribe((res) => {
+          const d = res?.data;
+          if (!d) return;
+          this.resolvedSummary.set(d.name || `${d.locality}, ${d.city}`);
+          this.addressResolved.emit({
+            lat,
+            lng,
+            locality: d.locality || '',
+            city: d.city || '',
+            district: d.district || d.city || '',
+            state: d.state || 'Maharashtra',
+            pincode: d.pincode || '',
+            fullAddress: d.fullAddress || '',
+          });
+        });
+    }
   }
 
   private updateMapPosition(lat: number, lng: number, pan: boolean): void {
     if (!this.map) return;
-
-    if (pan) {
-      this.map.panTo([lat, lng]);
-    }
-
+    if (pan) this.map.panTo([lat, lng]);
     if (this.marker) {
       this.marker.setLatLng([lat, lng]);
     } else {
       this.createOrUpdateMarker(lat, lng);
     }
-
-    if (this.privacyCircle) {
-      this.privacyCircle.setLatLng([lat, lng]);
-    }
+    this.privacyCircle?.setLatLng([lat, lng]);
   }
 
   private createOrUpdateMarker(lat: number, lng: number): void {
     if (!this.map) return;
-
     if (this.marker) {
       this.marker.setLatLng([lat, lng]);
       return;
     }
 
     const isPrivacy = this.homeBusinessPrivacy();
-    const customIcon = this.createMarkerIcon(isPrivacy);
-
     this.marker = L.marker([lat, lng], {
-      icon: customIcon,
-      draggable: true
+      icon: this.createMarkerIcon(isPrivacy),
+      draggable: true,
     }).addTo(this.map);
 
     this.marker.on('dragend', () => {
       const pos = this.marker?.getLatLng();
       if (pos) {
-        this.onPinMoved(pos.lat, pos.lng);
+        this.onPinMoved(pos.lat, pos.lng, true);
       }
     });
 
@@ -506,12 +616,10 @@ export class MapPickerPreviewComponent implements AfterViewInit, OnDestroy {
 
   private refreshPrivacyLayer(isPrivacy: boolean): void {
     if (!this.map) return;
-
     const lat = this.currentLat();
     const lng = this.currentLng();
 
     if (isPrivacy) {
-      // Create 500m circle if not already present
       if (!this.privacyCircle) {
         this.privacyCircle = L.circle([lat, lng], {
           radius: 500,
@@ -519,22 +627,17 @@ export class MapPickerPreviewComponent implements AfterViewInit, OnDestroy {
           weight: 2,
           dashArray: '6, 6',
           fillColor: '#FDBA74',
-          fillOpacity: 0.28
+          fillOpacity: 0.28,
         }).addTo(this.map);
       } else {
         this.privacyCircle.setLatLng([lat, lng]);
         this.privacyCircle.addTo(this.map);
       }
-    } else {
-      if (this.privacyCircle && this.map.hasLayer(this.privacyCircle)) {
-        this.map.removeLayer(this.privacyCircle);
-      }
+    } else if (this.privacyCircle && this.map.hasLayer(this.privacyCircle)) {
+      this.map.removeLayer(this.privacyCircle);
     }
 
-    // Update marker icon
-    if (this.marker) {
-      this.marker.setIcon(this.createMarkerIcon(isPrivacy));
-    }
+    this.marker?.setIcon(this.createMarkerIcon(isPrivacy));
   }
 
   private createMarkerIcon(isPrivacy: boolean): L.DivIcon {
@@ -544,14 +647,13 @@ export class MapPickerPreviewComponent implements AfterViewInit, OnDestroy {
       : `<div class="nn-pin-bubble">
            <div class="nn-pin-head"><span>${title}</span></div>
            <div class="nn-pin-point"></div>
-           <div class="nn-pin-pulse"></div>
          </div>`;
 
     return L.divIcon({
       className: 'nn-leaflet-marker',
       html,
       iconSize: [0, 0],
-      iconAnchor: [0, isPrivacy ? 0 : 20]
+      iconAnchor: [0, isPrivacy ? 0 : 20],
     });
   }
 
@@ -561,6 +663,6 @@ export class MapPickerPreviewComponent implements AfterViewInit, OnDestroy {
       if (this.locateToast() === msg) {
         this.locateToast.set(null);
       }
-    }, 3200);
+    }, 3500);
   }
 }

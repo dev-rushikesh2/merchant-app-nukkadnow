@@ -404,3 +404,27 @@
     gap: 12px;
   }
 }
+
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #printableStandee,
+  #printableStandee * {
+    visibility: visible !important;
+  }
+
+  #printableStandee {
+    position: fixed !important;
+    left: 50% !important;
+    top: 24px !important;
+    transform: translateX(-50%) !important;
+    width: 420px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: 2px solid #cbd5e1 !important;
+    background: #ffffff !important;
+  }
+}

@@ -117,6 +117,12 @@ import { StaffPermissionStore } from '../../core/permissions/staff-permission.st
             <span>Shop Profile</span>
           </a>
         }
+        @if (canAccess('profile:edit')) {
+          <a routerLink="/qr-ordering" (click)="close.emit()" routerLinkActive="active" class="nav-link">
+            <span class="link-icon">📱</span>
+            <span>Shop QR &amp; Ordering</span>
+          </a>
+        }
         @if (canAccess('analytics:view')) {
           <a routerLink="/analytics" (click)="close.emit()" routerLinkActive="active" class="nav-link">
             <span class="link-icon">📈</span>

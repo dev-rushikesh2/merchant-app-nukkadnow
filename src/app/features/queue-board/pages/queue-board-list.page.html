@@ -213,10 +213,12 @@
             <article class="kds-token-card ready-card">
               <div class="card-top-row">
                 <div class="token-badge-large emerald">{{ ord.token }}</div>
-                @if (ord.status === 'Called') {
+                @if (ord.status === 'OutForDelivery') {
+                  <span class="called-pill">🛵 Out for Delivery</span>
+                } @else if (ord.status === 'Called') {
                   <span class="called-pill">📢 Announced</span>
                 } @else {
-                  <span class="ready-pill">✓ At Counter</span>
+                  <span class="ready-pill">✓ Ready</span>
                 }
               </div>
 
@@ -236,9 +238,15 @@
                 <button type="button" class="btn-call-token" (click)="callToken(ord.token)">
                   📢 Call
                 </button>
-                <button type="button" class="btn-handover" (click)="completeOrder(ord.id)">
-                  Handover ✓
-                </button>
+                @if (ord.fulfilmentType === 'Home Delivery' && ord.status !== 'OutForDelivery') {
+                  <button type="button" class="btn-handover" (click)="dispatchForDelivery(ord.id)">
+                    🛵 Out for Delivery
+                  </button>
+                } @else {
+                  <button type="button" class="btn-handover" (click)="completeOrder(ord.id)">
+                    {{ ord.fulfilmentType === 'Home Delivery' ? '✓ Delivered' : 'Handover ✓' }}
+                  </button>
+                }
               </div>
             </article>
           } @empty {

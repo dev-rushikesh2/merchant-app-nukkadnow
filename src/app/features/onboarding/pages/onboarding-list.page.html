@@ -323,20 +323,21 @@
 
               <div class="form-group">
                 <label for="state" class="form-label">State <span class="required-star">*</span></label>
-                <div class="select-wrapper">
-                  <select
-                    id="state"
-                    class="form-control select-control"
-                    [ngModel]="store.location().state"
-                    (ngModelChange)="store.updateLocation({ state: $event })"
-                    name="state"
-                    required>
-                    @for (s of stateOptions; track s) {
-                      <option [value]="s">{{ s }}</option>
-                    }
-                  </select>
-                  <span class="select-chevron">▾</span>
-                </div>
+                <input
+                  id="state"
+                  type="text"
+                  list="stateSuggestions"
+                  class="form-control"
+                  placeholder="e.g. Maharashtra"
+                  [ngModel]="store.location().state"
+                  (ngModelChange)="store.updateLocation({ state: $event })"
+                  name="state"
+                  required />
+                <datalist id="stateSuggestions">
+                  @for (s of stateOptions; track s) {
+                    <option [value]="s"></option>
+                  }
+                </datalist>
               </div>
             </div>
 
@@ -344,60 +345,65 @@
             <div class="form-row-2col">
               <div class="form-group">
                 <label for="district" class="form-label">District <span class="required-star">*</span></label>
-                <div class="select-wrapper">
-                  <select
-                    id="district"
-                    class="form-control select-control"
-                    [ngModel]="store.location().district"
-                    (ngModelChange)="store.updateLocation({ district: $event })"
-                    name="district"
-                    required>
-                    @for (d of districtOptions; track d) {
-                      <option [value]="d">{{ d }}</option>
-                    }
-                  </select>
-                  <span class="select-chevron">▾</span>
-                </div>
+                <input
+                  id="district"
+                  type="text"
+                  list="districtSuggestions"
+                  class="form-control"
+                  placeholder="e.g. Amravati"
+                  [ngModel]="store.location().district"
+                  (ngModelChange)="store.updateLocation({ district: $event })"
+                  name="district"
+                  required />
+                <datalist id="districtSuggestions">
+                  @for (d of districtOptions; track d) {
+                    <option [value]="d"></option>
+                  }
+                </datalist>
               </div>
 
               <div class="form-group">
                 <label for="city" class="form-label">City / Town <span class="required-star">*</span></label>
-                <div class="select-wrapper">
-                  <select
-                    id="city"
-                    class="form-control select-control"
-                    [ngModel]="store.location().city"
-                    (ngModelChange)="store.updateLocation({ city: $event })"
-                    name="city"
-                    required>
-                    @for (c of cityOptions; track c) {
-                      <option [value]="c">{{ c }}</option>
-                    }
-                  </select>
-                  <span class="select-chevron">▾</span>
-                </div>
+                <input
+                  id="city"
+                  type="text"
+                  list="citySuggestions"
+                  class="form-control"
+                  placeholder="e.g. Amravati"
+                  [ngModel]="store.location().city"
+                  (ngModelChange)="store.updateLocation({ city: $event })"
+                  name="city"
+                  required />
+                <datalist id="citySuggestions">
+                  @for (c of cityOptions; track c) {
+                    <option [value]="c"></option>
+                  }
+                </datalist>
               </div>
             </div>
 
             <!-- Locality / Area -->
             <div class="form-group">
               <label for="locality" class="form-label">Locality / Area <span class="required-star">*</span></label>
-              <div class="input-with-icon select-wrapper">
+              <div class="input-with-icon">
                 <span class="field-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
                 </span>
-                <select
+                <input
                   id="locality"
-                  class="form-control select-control"
+                  type="text"
+                  list="localitySuggestions"
+                  class="form-control"
+                  placeholder="e.g. Pushpak Colony / Ramdas Peth (or click Use Shop GPS below)"
                   [ngModel]="store.location().locality"
                   (ngModelChange)="store.updateLocation({ locality: $event })"
                   name="locality"
-                  required>
+                  required />
+                <datalist id="localitySuggestions">
                   @for (loc of localityOptions; track loc) {
-                    <option [value]="loc">{{ loc }}</option>
+                    <option [value]="loc"></option>
                   }
-                </select>
-                <span class="select-chevron">▾</span>
+                </datalist>
               </div>
             </div>
 
@@ -428,12 +434,13 @@
             <div class="form-group">
               <label class="form-label">Mark Location on Map <span class="required-star">*</span></label>
               <merchant-map-picker-preview
-                [shopName]="store.details().businessName || 'Sharma General Store'"
-                [locality]="store.location().locality || 'Civil Lines'"
-                [city]="store.location().city || 'Akola'"
+                [shopName]="store.details().businessName || 'My Shop'"
+                [locality]="store.location().locality"
+                [city]="store.location().city"
                 [coordinates]="store.location().coordinates"
                 [homeBusinessPrivacy]="store.location().homeBusinessPrivacy"
-                (locationChange)="store.updateLocation({ coordinates: $event })">
+                (locationChange)="store.updateLocation({ coordinates: $event })"
+                (addressResolved)="onMapAddressResolved($event)">
               </merchant-map-picker-preview>
             </div>
 

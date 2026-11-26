@@ -81,7 +81,8 @@ export class DashboardListPageComponent implements OnInit, OnDestroy {
   loadDashboard(): void {
     this.isLoading.set(true);
     this.dashboardApi.fetchDashboardSummary().subscribe({
-      next: (data: DashboardApiResponse) => {
+      next: (raw: any) => {
+        const data = raw?.data?.performance ? raw.data : raw;
         if (data) {
           this.shopName.set(data.shopName || this.authStore.activeMerchant()?.merchantName || '');
           this.greeting.set(data.greeting || 'Good Day');
@@ -90,7 +91,7 @@ export class DashboardListPageComponent implements OnInit, OnDestroy {
           this.recentOrders.set(data.recentOrders || []);
           this.topProduct.set(data.topProduct || 'Daily Fresh Products');
           this.activeArea.set(data.activeArea || 'Within 10 km');
-          this.rating.set(data.rating || { score: 4.8, count: 50 });
+          this.rating.set(data.rating || { score: 4.8, count: 0 });
         }
         this.isLoading.set(false);
       },

@@ -11,10 +11,11 @@ export interface QueueOrder {
   token: string;
   customerName: string;
   type: 'Walk-in' | 'Online' | 'Table QR';
+  fulfilmentType: 'Home Delivery' | 'Self Pickup';
   itemsSummary: string;
   itemsCount: number;
   amount: number;
-  status: 'Preparing' | 'Ready' | 'Called';
+  status: 'Preparing' | 'Ready' | 'Called' | 'OutForDelivery';
   timeRemainingMins: number;
   placedTime: string;
 }
@@ -78,19 +79,32 @@ export class QueueBoardPageComponent implements OnInit, OnDestroy {
           else if (o.fulfilmentType === 'Table QR') orderType = 'Table QR';
 
           const itemsText = o.items && o.items.length > 0
-            ? o.items.map((i: any) => `${i.quantity}x ${i.name}`).join(', ')
+            ? o.items.map((i: any) => `${i.quantity || 1}x ${i.name || i.title || i.productName || 'Item'}`).join(', ')
             : `${o.itemsCount || 1} Items`;
+
+          const resolvedAmount = o.amount ?? o.totalAmount ?? (o.totalAmountPaise != null ? Math.round(Number(o.totalAmountPaise) / 100) : 0);
+
+          const isPickup = String(o.fulfilmentType || o.fulfillmentType || '').toUpperCase().includes('PICKUP') ||
+            String(o.fulfillmentType || '').toUpperCase() === 'WALK_IN';
+          const rawSt = String(o.status || '').toUpperCase();
+          const queueStatus: QueueOrder['status'] =
+            rawSt === 'OUT_FOR_DELIVERY'
+              ? 'OutForDelivery'
+              : rawSt.includes('READY')
+                ? 'Ready'
+                : 'Preparing';
 
           return {
             id: o.id || o.orderNumber,
             token: o.token || (o.orderNumber ? o.orderNumber.replace(/[^0-9]/g, '').slice(-3) : 'Q-01'),
-            customerName: o.customerName || 'Customer',
+            customerName: o.customerName || o.customer?.name || 'Online Customer',
             type: orderType,
+            fulfilmentType: isPickup ? 'Self Pickup' : 'Home Delivery',
             itemsSummary: itemsText,
-            itemsCount: o.itemsCount || 1,
-            amount: o.amount || 0,
-            status: o.status === 'Ready' ? 'Ready' : 'Preparing',
-            timeRemainingMins: o.status === 'Ready' ? 0 : 8,
+            itemsCount: o.itemsCount || (Array.isArray(o.items) ? o.items.length : 1),
+            amount: resolvedAmount,
+            status: queueStatus,
+            timeRemainingMins: queueStatus === 'Preparing' ? 8 : 0,
             placedTime: o.time || 'Today'
           };
         });
@@ -118,7 +132,7 @@ export class QueueBoardPageComponent implements OnInit, OnDestroy {
   );
 
   readonly readyOrders = computed(() =>
-    this.filteredQueue().filter(q => q.status === 'Ready' || q.status === 'Called')
+    this.filteredQueue().filter(q => q.status === 'Ready' || q.status === 'Called' || q.status === 'OutForDelivery')
   );
 
   callNextToken() {
@@ -157,12 +171,26 @@ export class QueueBoardPageComponent implements OnInit, OnDestroy {
     });
   }
 
+  dispatchForDelivery(id: string) {
+    this.orderApi.updateOrderStatus(id, 'OUT_FOR_DELIVERY').subscribe({
+      next: () => {
+        this.queueList.update(list =>
+          list.map(q => q.id === id ? { ...q, status: 'OutForDelivery', timeRemainingMins: 0 } : q)
+        );
+        this.showToast(`Order dispatched — Out for Delivery!`);
+      },
+      error: (err) => {
+        this.showToast(err?.error?.message || 'Failed to dispatch order');
+      }
+    });
+  }
+
   completeOrder(id: string) {
     this.orderApi.updateOrderStatus(id, 'Completed').subscribe({
       next: () => {
         this.queueList.update(list => list.filter(q => q.id !== id));
         this.completedToday.update(c => c + 1);
-        this.showToast(`Order handed over & completed!`);
+        this.showToast(`Order delivered & completed!`);
       },
       error: (err) => {
         this.showToast(err?.error?.message || 'Failed to complete order');

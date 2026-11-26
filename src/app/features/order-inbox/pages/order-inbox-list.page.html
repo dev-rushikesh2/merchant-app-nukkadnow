@@ -105,6 +105,13 @@
           <button 
             type="button" 
             class="filter-pill" 
+            [class.active]="activeFilter() === 'Out for Delivery'"
+            (click)="setFilter('Out for Delivery')">
+            🛵 Out for Delivery
+          </button>
+          <button 
+            type="button" 
+            class="filter-pill" 
             [class.active]="activeFilter() === 'Completed'"
             (click)="setFilter('Completed')">
             Completed
@@ -141,9 +148,9 @@
             <!-- Customer & Delivery Row -->
             <div class="order-card-customer">
               <div class="customer-info">
-                <div class="customer-avatar">{{ order.customerName.charAt(0) }}</div>
+                <div class="customer-avatar">{{ (order.customerName || 'C').charAt(0) }}</div>
                 <div class="customer-text">
-                  <strong class="cust-name">{{ order.customerName }}</strong>
+                  <strong class="cust-name">{{ order.customerName || 'Online Customer' }}</strong>
                   <span class="cust-phone">{{ order.customerPhone || 'Verified Customer' }}</span>
                 </div>
               </div>
@@ -225,15 +232,28 @@
                 <button type="button" class="btn-secondary" (click)="openOrderDetails(order.id)">
                   View Details
                 </button>
-                <button type="button" class="btn-ready" (click)="markCompleted(order.id, $event)">
+                <button type="button" class="btn-ready" (click)="markReady(order.id, $event)">
                   Mark as Ready
                 </button>
               } @else if (order.status === 'Ready') {
                 <button type="button" class="btn-secondary" (click)="openOrderDetails(order.id)">
                   View Details
                 </button>
+                @if (order.fulfilmentType === 'Self Pickup') {
+                  <button type="button" class="btn-ready" (click)="markCompleted(order.id, $event)">
+                    Handover / Complete ✓
+                  </button>
+                } @else {
+                  <button type="button" class="btn-ready" (click)="markOutForDelivery(order.id, $event)">
+                    🛵 Out for Delivery
+                  </button>
+                }
+              } @else if (order.status === 'Out for Delivery') {
+                <button type="button" class="btn-secondary" (click)="openOrderDetails(order.id)">
+                  View Details
+                </button>
                 <button type="button" class="btn-ready" (click)="markCompleted(order.id, $event)">
-                  Handover / Complete
+                  ✓ Mark Delivered
                 </button>
               } @else {
                 <span class="badge-completed">✓ Completed</span>

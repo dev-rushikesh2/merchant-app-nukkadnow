@@ -17,8 +17,8 @@ export interface MerchantOrder {
   customerPhone?: string;
   fulfilmentType: 'Home Delivery' | 'Self Pickup';
   distance?: string;
-  status: 'New' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled';
-  stepIndex?: number; // 0: Accepted, 1: Preparing, 2: Ready, 3: Out for Delivery
+  status: 'New' | 'Preparing' | 'Ready' | 'Out for Delivery' | 'Completed' | 'Cancelled';
+  stepIndex?: number; // 0: Accepted, 1: Preparing, 2: Ready, 3: Out for Delivery, 4: Delivered
   items?: any[];
 }
 
@@ -54,7 +54,7 @@ export class OrderInboxPageComponent implements OnInit, OnDestroy {
   readonly subTab = signal<'inbox' | 'history'>('inbox');
 
   // Filter Pills in Live Inbox
-  readonly activeFilter = signal<'All' | 'New' | 'Preparing' | 'Ready' | 'Completed'>('All');
+  readonly activeFilter = signal<'All' | 'New' | 'Preparing' | 'Ready' | 'Out for Delivery' | 'Completed'>('All');
 
   // Filter Pills in Order History
   readonly historyFilter = signal<'All' | 'Completed' | 'Cancelled' | 'Returned'>('All');
@@ -96,29 +96,77 @@ export class OrderInboxPageComponent implements OnInit, OnDestroy {
     this.sub.unsubscribe();
   }
 
+  private normalizeOrderStatus(raw: any): MerchantOrder['status'] {
+    const s = String(raw || '').toUpperCase();
+    if (s === 'COMPLETED' || s === 'DELIVERED') return 'Completed';
+    if (s === 'CANCELLED') return 'Cancelled';
+    if (s === 'OUT_FOR_DELIVERY' || s === 'OUT FOR DELIVERY') return 'Out for Delivery';
+    if (s === 'READY' || s === 'READY_FOR_PICKUP') return 'Ready';
+    if (s === 'PREPARING' || s === 'ACCEPTED') return 'Preparing';
+    if (s === 'CONFIRMED' || s === 'PENDING' || s === 'PLACED' || s === 'NEW') return 'New';
+    return 'New';
+  }
+
+  private resolveStepIndex(status: MerchantOrder['status']): number {
+    if (status === 'Completed') return 4;
+    if (status === 'Out for Delivery') return 3;
+    if (status === 'Ready') return 2;
+    if (status === 'Preparing') return 1;
+    return 0;
+  }
+
+  private resolveOrderAmount(o: any): number {
+    if (o?.amount != null && Number.isFinite(Number(o.amount))) return Number(o.amount);
+    if (o?.totalAmount != null && Number.isFinite(Number(o.totalAmount))) return Number(o.totalAmount);
+    if (o?.totalAmountPaise != null && Number.isFinite(Number(o.totalAmountPaise))) {
+      return Math.round(Number(o.totalAmountPaise) / 100);
+    }
+    return 0;
+  }
+
   loadOrders(): void {
     this.isLoading.set(true);
     this.orderApi.fetchOrders().subscribe({
       next: (res: OrderApiResponse) => {
         if (res && res.data) {
-          const live: MerchantOrder[] = res.liveOrders || res.data.filter(
-            (o: any) => o.status !== 'Completed' && o.status !== 'Cancelled'
-          );
-          const history: PastOrder[] = (res.pastOrders || res.data.filter(
-            (o: any) => o.status === 'Completed' || o.status === 'Cancelled'
-          )).map((o: any) => ({
-            id: o.orderNumber || o.id,
+          const liveRaw = (res.liveOrders || res.data || []).filter((o: any) => {
+            const st = this.normalizeOrderStatus(o.status);
+            return st !== 'Completed' && st !== 'Cancelled';
+          });
+          const historyRaw = res.pastOrders || (res.data || []).filter((o: any) => {
+            const st = this.normalizeOrderStatus(o.status);
+            return st === 'Completed' || st === 'Cancelled';
+          });
+
+          const history: PastOrder[] = historyRaw.map((o: any) => ({
+            id: o.orderNumber || o.id || '',
+            orderNumber: o.orderNumber || o.id,
+            customerName: o.customerName || o.customer?.name || o.customerPhone || 'Online Customer',
             date: o.date || 'Today',
             time: o.time || '10:00 AM',
-            amount: o.amount,
-            itemsCount: o.itemsCount || (o.items ? o.items.length : 1),
-            status: o.status === 'Cancelled' ? 'Cancelled' : 'Completed'
+            amount: this.resolveOrderAmount(o),
+            itemsCount: o.itemsCount || (Array.isArray(o.items) ? o.items.length : 1),
+            status: this.normalizeOrderStatus(o.status) === 'Cancelled' ? 'Cancelled' : 'Completed'
           }));
 
-          this.orders.set(live.map((o: any) => ({
-            ...o,
-            id: o.orderNumber || o.id
-          })));
+          this.orders.set(liveRaw.map((o: any) => {
+            const st = this.normalizeOrderStatus(o.status);
+            return {
+              ...o,
+              id: o.orderNumber || o.id || '',
+              orderNumber: o.orderNumber || o.id || '',
+              time: o.time || 'Just now',
+              amount: this.resolveOrderAmount(o),
+              itemsCount: o.itemsCount || (Array.isArray(o.items) ? o.items.length : 1),
+              customerName: o.customerName || o.customer?.name || o.customerPhone || 'Online Customer',
+              customerPhone: o.customerPhone || 'Verified Customer',
+              fulfilmentType: String(o.fulfilmentType || o.fulfillmentType || '').toUpperCase().includes('PICKUP')
+                ? 'Self Pickup'
+                : 'Home Delivery',
+              status: st,
+              stepIndex: this.resolveStepIndex(st)
+            };
+          }));
           this.pastOrders.set(history);
         }
         this.isLoading.set(false);
@@ -142,8 +190,8 @@ export class OrderInboxPageComponent implements OnInit, OnDestroy {
     }
     if (q) {
       list = list.filter(o =>
-        o.id.toLowerCase().includes(q) ||
-        o.customerName.toLowerCase().includes(q)
+        (o.id || '').toLowerCase().includes(q) ||
+        (o.customerName || '').toLowerCase().includes(q)
       );
     }
     return list;
@@ -163,7 +211,7 @@ export class OrderInboxPageComponent implements OnInit, OnDestroy {
     this.subTab.set(tab);
   }
 
-  setFilter(f: 'All' | 'New' | 'Preparing' | 'Ready' | 'Completed') {
+  setFilter(f: 'All' | 'New' | 'Preparing' | 'Ready' | 'Out for Delivery' | 'Completed') {
     this.activeFilter.set(f);
   }
 
@@ -201,12 +249,58 @@ export class OrderInboxPageComponent implements OnInit, OnDestroy {
     });
   }
 
+  markReady(orderId: string, event: Event) {
+    event.stopPropagation();
+    this.orderApi.updateOrderStatus(orderId, 'Ready').subscribe({
+      next: () => {
+        this.orders.update(list =>
+          list.map(o => (o.id === orderId ? { ...o, status: 'Ready', stepIndex: 2 } : o))
+        );
+        this.showToast(`Order ${orderId} marked Ready!`);
+      },
+      error: () => {
+        this.showToast(`Error marking order ${orderId} ready`);
+      }
+    });
+  }
+
+  markOutForDelivery(orderId: string, event: Event) {
+    event.stopPropagation();
+    this.orderApi.updateOrderStatus(orderId, 'OUT_FOR_DELIVERY').subscribe({
+      next: () => {
+        this.orders.update(list =>
+          list.map(o => (o.id === orderId ? { ...o, status: 'Out for Delivery', stepIndex: 3 } : o))
+        );
+        this.showToast(`Order ${orderId} is now Out for Delivery!`);
+      },
+      error: () => {
+        this.showToast(`Error dispatching order ${orderId}`);
+      }
+    });
+  }
+
   markCompleted(orderId: string, event: Event) {
     event.stopPropagation();
     this.orderApi.updateOrderStatus(orderId, 'Completed').subscribe({
       next: () => {
+        const doneOrder = this.orders().find(o => o.id === orderId);
         this.orders.update(list => list.filter(o => o.id !== orderId));
-        this.showToast(`Order ${orderId} marked as completed!`);
+        if (doneOrder) {
+          this.pastOrders.update(hist => [
+            {
+              id: doneOrder.id,
+              orderNumber: doneOrder.orderNumber,
+              customerName: doneOrder.customerName,
+              date: doneOrder.date || 'Today',
+              time: doneOrder.time || 'Just now',
+              amount: doneOrder.amount,
+              itemsCount: doneOrder.itemsCount,
+              status: 'Completed'
+            },
+            ...hist
+          ]);
+        }
+        this.showToast(`Order ${orderId} delivered & completed!`);
       },
       error: () => {
         this.showToast(`Error updating order ${orderId}`);

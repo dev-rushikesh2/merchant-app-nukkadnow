@@ -5,6 +5,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { QrOrderingStore } from '../state/qr-ordering.store';
 import { QrStandeeViewModel, QrStandeeType } from '../models/qr-ordering-view.model';
 import { ButtonComponent, DialogComponent } from '@nukkadnow/ui';
+import { downloadQrSvg, downloadStandeePosterPng } from '../utils/qr-svg-generator';
 
 @Component({
   selector: 'merchant-qr-ordering-list-page',
@@ -66,5 +67,30 @@ export class QrOrderingListPageComponent {
 
   printStandee(): void {
     window.print();
+  }
+
+  async downloadPosterPng(standee: QrStandeeViewModel): Promise<void> {
+    await downloadStandeePosterPng({
+      shopName: this.store.merchantName(),
+      locality: this.store.locality(),
+      city: this.store.city(),
+      label: standee.label,
+      targetUrl: standee.targetUrl,
+      sourceTag: standee.sourceTag
+    });
+  }
+
+  downloadSvg(standee: QrStandeeViewModel): void {
+    downloadQrSvg(`${this.store.merchantName()}-${standee.label}`, standee.targetUrl);
+  }
+
+  async copyOrderLink(standee: QrStandeeViewModel): Promise<void> {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(standee.targetUrl);
+      }
+    } catch {
+      // Clipboard API may require secure focus
+    }
   }
 }

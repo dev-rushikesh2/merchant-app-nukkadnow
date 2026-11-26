@@ -33,20 +33,9 @@ const DEFAULT_SCHEDULE: OutletScheduleDay[] = [
 
 @Injectable({ providedIn: 'root' })
 export class OutletSwitcherStore {
-  readonly outlets = signal<OutletRecord[]>([
-    {
-      id: 'outlet-kirana-002',
-      name: 'Sharma Kirana - Main Store',
-      locality: 'Civil Lines',
-      address: 'Shop No. 12, Main Market Road',
-      pincode: '444001',
-      status: 'OPEN',
-      activeOrdersCount: 4,
-      weeklySchedule: DEFAULT_SCHEDULE
-    }
-  ]);
+  readonly outlets = signal<OutletRecord[]>([]);
 
-  readonly activeOutletId = signal<string>('outlet-kirana-002');
+  readonly activeOutletId = signal<string>('');
 
   readonly activeOutlet = computed(() => {
     return this.outlets().find((o) => o.id === this.activeOutletId()) || this.outlets()[0];

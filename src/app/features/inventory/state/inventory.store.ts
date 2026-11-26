@@ -21,14 +21,32 @@ export class InventoryStore {
     this.init();
   }
 
+  private resolveOutletId(): string {
+    return this.authStore.activeMerchant()?.outletId || this.outletStore.activeOutletId() || '';
+  }
+
   private init(): void {
-    const outletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
-    this.loadInventory(outletId);
+    const outletId = this.resolveOutletId();
+    if (outletId) {
+      this.loadInventory(outletId);
+    }
 
     this.authStore.tenantSwitched$.subscribe(() => {
-      const newOutletId = this.outletStore.activeOutletId() || (this.authStore.activeMerchant()?.outletId ?? '');
-      this.loadInventory(newOutletId);
+      const newOutletId = this.resolveOutletId();
+      if (newOutletId) {
+        this.loadInventory(newOutletId);
+      } else {
+        this.items.set([]);
+        this.movements.set([]);
+      }
     });
+  }
+
+  reload(): void {
+    const outletId = this.resolveOutletId();
+    if (outletId) {
+      this.loadInventory(outletId);
+    }
   }
 
   loadInventory(outletId = 'outlet-main') {
